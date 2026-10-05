@@ -1,0 +1,11 @@
+# Runtime: framework, session API, local environment and Windows timezone data.
+Django>=6.1,<6.2
+djangorestframework>=3.18,<3.19
+python-dotenv>=1.1,<2
+tzdata>=2025.2
+# Development and verification.
+pytest>=8.4,<10
+pytest-django>=4.11,<5
+factory-boy>=3.3,<4
+coverage>=7.10,<8
+ruff>=0.14,<1

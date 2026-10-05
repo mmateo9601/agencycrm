@@ -1,0 +1,29 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AgencyCRM{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}">
+</head>
+<body class="bg-light">
+  <nav class="navbar bg-dark navbar-dark">
+    <div class="container">
+      <a class="navbar-brand" href="{% url 'home' %}">AgencyCRM</a>
+      {% if user.is_authenticated %}
+      <div class="d-flex align-items-center gap-3">
+        {% if user.is_superuser %}<a class="link-light" href="{% url 'admin:index' %}">Administración</a>{% endif %}
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}<button class="btn btn-outline-light" type="submit">Cerrar sesión</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+  </nav>
+  <main class="container py-5">
+    {% for message in messages %}<div class="alert alert-info">{{ message }}</div>{% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
