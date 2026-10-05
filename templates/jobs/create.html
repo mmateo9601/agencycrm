@@ -1,0 +1,7 @@
+{% extends "workspace/base.html" %}
+{% block workspace_content %}
+<h2 class="h4">Comprobar proveedores simulados</h2>
+<p>La prueba usa empresas y destinatarios ficticios. No crea leads ni envía comunicaciones.</p>
+<form method="post" class="card card-body">{% csrf_token %}{{ form.as_p }}
+<div><button class="btn btn-primary" type="submit">Encolar comprobación</button> <a class="btn btn-link" href="{% url 'jobs:list' workspace.id %}">Cancelar</a></div></form>
+{% endblock %}

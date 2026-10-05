@@ -1,0 +1,27 @@
+{% extends "workspace/base.html" %}
+{% load static %}
+{% block workspace_content %}
+<h2 class="h4">{{ job.get_kind_display }}</h2><p class="text-secondary">{{ job.id }}</p>
+<section class="card card-body mb-4" data-job-progress="{% url 'jobs:progress' workspace.id job.id %}" data-status="{{ job.status }}" data-attempts="{{ job.attempts }}">
+  <h3 class="h5" data-job-status>{{ job.get_status_display }}</h3>
+  <progress class="w-100" max="{{ job.progress_total|default:1 }}" value="{{ job.progress_current }}" aria-label="Progreso del trabajo"></progress>
+  <p data-job-count>{{ job.progress_current }} / {{ job.progress_total }}</p>
+  <p>Intentos: {{ job.attempts }} / {{ job.max_attempts }} · Prioridad: {{ job.priority }}</p>
+  <p>Disponible: {{ job.available_at|date:'d/m/Y H:i:s' }} · Inicio: {{ job.started_at|date:'d/m/Y H:i:s'|default:'—' }} · Fin: {{ job.finished_at|date:'d/m/Y H:i:s'|default:'—' }}</p>
+  {% if job.last_error %}<p class="alert alert-warning">{{ job.last_error }}</p>{% endif %}
+  {% if can_delete and job.status == 'PENDING' %}<form method="post" action="{% url 'jobs:action' workspace.id job.id 'cancel' %}">{% csrf_token %}<button class="btn btn-outline-danger" type="submit">Cancelar trabajo pendiente</button></form>{% endif %}
+  {% if can_delete and stale %}<form method="post" action="{% url 'jobs:action' workspace.id job.id 'recover' %}">{% csrf_token %}<p>Detén el worker antes de recuperar esta ejecución interrumpida.</p><button class="btn btn-outline-primary" type="submit">Recuperar trabajo antiguo</button></form>{% endif %}
+</section>
+{% if job.result %}<section class="card card-body mb-4"><h3 class="h5">Resultado simulado</h3><pre class="mb-0 text-break">{{ job.result }}</pre></section>{% endif %}
+<section class="card card-body"><h3 class="h5">Historial de intentos</h3>
+{% for attempt in attempts_page %}<article class="border-bottom py-3">
+<h4 class="h6">Intento {{ attempt.attempt_number }} · {% if attempt.finished_at %}{% if attempt.succeeded %}Correcto{% else %}Fallido{% endif %}{% else %}En ejecución{% endif %}</h4>
+<p>{{ attempt.started_at|date:'d/m/Y H:i:s' }} → {{ attempt.finished_at|date:'d/m/Y H:i:s'|default:'—' }}</p>
+{% if attempt.error_type %}<p>{{ attempt.error_type }}: {{ attempt.error_message }}</p>{% endif %}
+{% if attempt.traceback_excerpt %}<details><summary>Ubicación del fallo</summary><pre>{{ attempt.traceback_excerpt }}</pre></details>{% endif %}
+</article>{% empty %}<p>El worker aún no ha iniciado este trabajo.</p>{% endfor %}
+<nav aria-label="Intentos">{% if attempts_page.has_previous %}<a href="{% querystring page=attempts_page.previous_page_number %}">Anterior</a>{% endif %} Página {{ attempts_page.number }} de {{ attempts_page.paginator.num_pages }} {% if attempts_page.has_next %}<a href="{% querystring page=attempts_page.next_page_number %}">Siguiente</a>{% endif %}</nav>
+</section>
+<p class="mt-3"><a href="{% url 'jobs:list' workspace.id %}">Volver a trabajos</a> · <a href="">Actualizar</a></p>
+<script src="{% static 'jobs/progress.js' %}" defer></script>
+{% endblock %}

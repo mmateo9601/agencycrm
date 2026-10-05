@@ -1,0 +1,15 @@
+{% extends "workspace/base.html" %}
+{% block title %}Trabajos · AgencyCRM{% endblock %}
+{% block workspace_content %}
+<div class="d-flex justify-content-between mb-3"><h2 class="h4">Trabajos</h2>
+{% if can_write %}<a class="btn btn-primary" href="{% url 'jobs:create' workspace.id %}">Comprobar proveedores simulados</a>{% endif %}</div>
+<form method="get" class="card card-body mb-3"><div class="d-flex flex-wrap gap-3">{{ filter_form.as_p }}<div><button type="submit" class="btn btn-outline-primary">Filtrar</button></div></div></form>
+<p>{{ page_obj.paginator.count }} trabajos. El worker se ejecuta en una terminal independiente.</p>
+<div class="table-responsive"><table class="table"><thead><tr><th>Trabajo</th><th>Estado</th><th>Progreso</th><th>Intentos</th><th>Disponible</th></tr></thead><tbody>
+{% for job in page_obj %}<tr>
+<td><a href="{% url 'jobs:detail' workspace.id job.id %}">{{ job.get_kind_display }}</a><small class="d-block text-secondary">{{ job.id }}</small></td>
+<td>{{ job.get_status_display }}</td><td>{{ job.progress_current }}/{{ job.progress_total }}</td><td>{{ job.attempts }}/{{ job.max_attempts }}</td><td>{{ job.available_at|date:'d/m/Y H:i:s' }}</td>
+</tr>{% empty %}<tr><td colspan="5">No hay trabajos con estos filtros.</td></tr>{% endfor %}
+</tbody></table></div>
+<nav aria-label="Paginación">{% if page_obj.has_previous %}<a href="{% querystring page=page_obj.previous_page_number %}">Anterior</a>{% endif %} Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} {% if page_obj.has_next %}<a href="{% querystring page=page_obj.next_page_number %}">Siguiente</a>{% endif %}</nav>
+{% endblock %}

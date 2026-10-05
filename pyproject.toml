@@ -1,7 +1,7 @@
 [project]
 name = "agencycrm"
-version = "0.1.0"
-description = "AgencyCRM — Companies, Campaigns y CRM básico"
+version = "0.2.0"
+description = "AgencyCRM — Jobs locales y providers mock"
 requires-python = ">=3.14,<3.15"
 
 [tool.pytest.ini_options]
@@ -24,7 +24,7 @@ select = ["E", "F", "I", "B", "UP"]
 "**/migrations/*.py" = ["E501"]
 
 [tool.coverage.run]
-source = ["apps", "common"]
+source = ["apps", "common", "integrations"]
 omit = ["*/migrations/*", "*/__init__.py"]
 
 [tool.coverage.report]

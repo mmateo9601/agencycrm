@@ -14,5 +14,6 @@ staticfiles/
 htmlcov/
 coverage.xml
 *.log
+*.worker.lock
 .idea/
 .vscode/

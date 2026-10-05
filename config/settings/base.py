@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "apps.campaigns",
     "apps.crm",
     "apps.audit",
+    "apps.jobs",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -89,9 +90,11 @@ SECURE_REFERRER_POLICY = "same-origin"
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2_000_000
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2_000_000
 MAILERS = {"default": {"BACKEND": "django.core.mail.backends.console.EmailBackend"}}
-# No providers exist in Bootstrap; these values cannot enable external I/O.
+# Phase 2 only provides local mock adapters; these values cannot enable external I/O.
 OUTREACH_MODE = "simulation"
 EMAIL_PROVIDER = WHATSAPP_PROVIDER = AI_PROVIDER = PLACES_PROVIDER = "mock"
+JOB_RETRY_BASE_SECONDS = 5
+JOB_STALE_AFTER_SECONDS = 900
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

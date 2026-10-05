@@ -1,9 +1,9 @@
-# AgencyCRM — FASE 1 · Companies + Campaigns + CRM básico
+# AgencyCRM — FASE 2 · Jobs locales y providers mock
 
 Base local de AgencyCRM siguiendo `IMPLEMENTATION_PLAYBOOK_AGENCYCRM.md`.
-Implementadas FASE 0 y FASE 1: base Django, cuentas, espacios de trabajo,
-empresas, contactos, campañas, leads, oportunidades manuales e historial.
-Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 2.
+Implementadas FASE 0, FASE 1 y FASE 2: base Django, cuentas, espacios de trabajo,
+CRM básico, cola local de trabajos y proveedores simulados.
+Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 3.
 
 ## Instalación (PowerShell)
 
@@ -41,8 +41,7 @@ Crear desde el admin un `Workspace`, usuarios, sus `Membership`, un
 `AgencyProfile` y sus `ServiceOffering`. No se crean cuentas con contraseñas
 por defecto. Los roles de membership son OWNER, ADMIN, SALES, MEMBER y VIEWER.
 OWNER y ADMIN pueden crear, editar, archivar y eliminar; SALES y MEMBER pueden
-crear y editar; VIEWER solo consulta. Los workers y `seed_demo` no existen aún:
-solo se usa una terminal.
+crear y editar; VIEWER solo consulta. `seed_demo` no existe aún.
 
 ## Uso de FASE 1
 
@@ -70,6 +69,70 @@ No se crean nuevos leads en empresas/campañas archivadas ni se cambian estados
 de leads archivados. Contactos, referencias, perfiles y oportunidades permiten
 borrado confirmado, registrado en auditoría. No hay borrados mediante GET.
 
+## Uso de FASE 2
+
+Mantener dos terminales con el mismo entorno y `.env`: una para `runserver`
+y otra para el worker. El servidor HTTP solo encola y consulta trabajos.
+
+```powershell
+python manage.py run_worker
+# Procesar como máximo un trabajo disponible y salir:
+python manage.py run_worker --once
+# Filtrar tipos y ajustar la espera cuando no hay trabajo:
+python manage.py run_worker --kinds CHECK_MOCK_PROVIDERS --sleep 2
+```
+
+En un workspace, **Trabajos → Nuevo diagnóstico** permite comprobar Places,
+Email y WhatsApp mock. El job `CHECK_MOCK_PROVIDERS` usa exclusivamente fixtures
+ficticias y destinatarios `.invalid`; no crea empresas/leads ni contacta a nadie.
+Los escenarios éxito, error temporal inicial y error permanente permiten observar
+progreso, intentos y errores seguros. El detalle consulta progreso cada dos segundos
+mediante un endpoint de la propia aplicación. VIEWER consulta; los roles con
+escritura encolan; OWNER/ADMIN cancelan pendientes o recuperan interrumpidos.
+Cada formulario genera una clave de idempotencia: repetir su POST no duplica el job.
+La misma clave dentro de un workspace conserva el trabajo original y nunca lo
+reprograma, incluso después de un reintento. Cambiar tipo, payload, prioridad o
+presupuesto con esa clave produce un error.
+
+Los ocho tipos de trabajo del playbook están declarados, pero sus handlers de
+negocio se implementarán en sus fases. No se pueden encolar todavía mediante
+`JobService`: la única operación ejecutable es el diagnóstico anterior. No hay
+búsquedas reales, scoring, propuestas ni outreach. Las comprobaciones de elegibilidad
+y consentimiento pertenecen a la futura fase de outreach; no existe un handler
+de envío que permita saltárselas.
+
+Solo un worker puede usar una base de datos local. Un bloqueo del sistema operativo
+en `<database>.worker.lock` impide arrancar un segundo proceso y se libera al salir,
+incluso si el proceso termina inesperadamente. **No borrar ese archivo para forzar
+un desbloqueo.** Cada ejecución tiene además un token: callbacks antiguos no pueden
+modificar un trabajo recuperado. Los handlers se ejecutan fuera de transacciones;
+los cambios de estado, intento y auditoría usan transacciones cortas. El worker
+vuelve a comprobar la membership del creador antes de ejecutar.
+
+Solo los errores temporales declarados permiten reintentos, con espera exponencial
+de 5 segundos hasta 300 segundos; los límites del proveedor pueden alargarla.
+El presupuesto predeterminado es tres intentos (configurable entre uno y diez).
+Errores permanentes o inesperados finalizan el job. Nunca se persisten mensajes
+crudos de excepciones, payloads o credenciales en el historial de errores.
+
+Tras interrumpir un worker, **detenerlo antes de recuperar** jobs RUNNING de más de
+15 minutos. La recuperación utiliza el mismo bloqueo; la antigüedad por sí sola
+no permite tomar un trabajo que otro proceso sigue ejecutando.
+
+```powershell
+python manage.py requeue_stale_jobs --workspace <UUID>
+# El operador local puede ajustar la antigüedad mínima en segundos:
+python manage.py requeue_stale_jobs --workspace <UUID> --older-than 900
+```
+
+La CLI es una herramienta privilegiada del operador; omitir `--workspace` abarca
+toda la base. La UI siempre limita la recuperación al job del workspace autorizado.
+Recuperar cierra el intento interrumpido y no restablece el presupuesto: si está
+agotado, el job termina FAILED. Esta arquitectura admite un solo worker en una
+máquina y un disco local; no pretende coordinar varias máquinas. PostgreSQL o
+Celery/RQ requerirán un adaptador de coordinación apropiado, conservando los
+contratos de encolado y de proveedores.
+
 ## Estructura y decisiones
 
 - `config/settings/base.py`: configuración común, autenticación DRF por sesión,
@@ -84,9 +147,11 @@ borrado confirmado, registrado en auditoría. No hay borrados mediante GET.
 - `apps/companies/`, `apps/campaigns/`, `apps/crm/`: modelos, formularios,
   selectores y servicios del dominio. Las mutaciones son transaccionales y
   validan relaciones, permisos y campos explícitos antes de persistir.
-- `apps/audit/`: registro mínimo append-only de las mutaciones de esta fase.
-  No guarda cuerpos, contraseñas ni payloads de formularios. Se incorpora ahora
-  para cumplir la trazabilidad exigida por el playbook, sin implementar jobs.
+- `apps/audit/`: registro mínimo append-only de las mutaciones y del ciclo de jobs.
+  No guarda cuerpos, contraseñas ni payloads de formularios.
+- `apps/jobs/`: JobService, runner, recuperación, historial de intentos, UI y CLI.
+- `integrations/`: contratos con dataclasses y mocks puros de Places/Email/WhatsApp;
+  no acceden al ORM ni realizan llamadas de red.
 - `common/`: infraestructura compartida de CRUD, permisos, normalización y
   presentación. El registro HTTP de recursos es una lista cerrada de modelos.
 - `templates/`, `static/vendor/bootstrap/`: HTML con autoescape y Bootstrap
@@ -112,7 +177,7 @@ El admin es una consola **global de plataforma**, reservada exclusivamente al
 operador superusuario; puede gestionar todos los espacios para su configuración.
 Un ADMIN de workspace no es un superusuario Django. Usuarios staff, incluso
 con permisos Django asignados, no pueden acceder a esta consola. No conceder
-`is_superuser` a usuarios de un workspace. Los modelos de FASE 1 y auditoría son
+`is_superuser` a usuarios de un workspace. Los modelos de FASE 1, jobs y auditoría son
 de **solo lectura en admin**, incluso para superusuarios: las mutaciones pasan
 por los servicios de la UI por workspace. No hay una API de dominio pública.
 
@@ -132,12 +197,13 @@ actualización condicional para detectar escrituras concurrentes. Un reintento
 al mismo estado no duplica historial. Estado, historial y auditoría se guardan
 en una sola transacción. Los estados finales no se reabren en esta fase.
 Las campañas solo pasan de DRAFT a READY, vuelven a DRAFT o se archivan;
-RUNNING requiere la futura fase de jobs. No hay detección automática de
-oportunidades, cálculo de scoring ni proveedores mock funcionales todavía.
+RUNNING requiere la futura fase de búsquedas. No hay detección automática de
+oportunidades ni cálculo de scoring todavía.
 
 CSRF permanece activo en login, logout y admin. Los tests bloquean conexiones
-salientes y DNS. No hay providers, llamadas externas de aplicación, automatización
-ni envíos reales; los settings de provider son valores mock fijos en esta fase.
+salientes y DNS. No hay llamadas externas de aplicación ni envíos reales;
+los settings de provider son valores mock fijos en esta fase. La factoría rechaza
+cualquier modo distinto de simulation/mock y nunca recurre a un provider real.
 
 El campo `AgencyProfile.logo` está reservado, no editable todavía. No se habilitan
 uploads ni se publican URLs de media sin autorización; validación de imágenes,
@@ -168,9 +234,10 @@ validadas para reproducir esta entrega.
 | coverage | Medición de cobertura (umbral 80%) |
 | Ruff | Lint y formato de Python 3.14 |
 
-El lock incluye las dependencias transitivas de estas herramientas. HTTP clients,
-parsers, generación documental y workers se aplazan
-a sus fases. Bootstrap es el único recurso frontend externo vendorizado; se
+El lock incluye las dependencias transitivas de estas herramientas. El worker usa
+solo Django y la biblioteca estándar; FASE 2 no añade dependencias. HTTP clients,
+parsers y generación documental se aplazan a sus fases.
+Bootstrap es el único recurso frontend externo vendorizado; se
 copió de una distribución 5.3.2 ya disponible localmente conservando su cabecera.
 
 ## Verificación
@@ -208,3 +275,9 @@ auth, contenttypes, sessions y admin. FASE 1 añade y aplica:
 Las migraciones previas no se modifican. Las pruebas adicionales cubren CRUD
 completo, relaciones manipuladas, acceso cruzado incluso con dos memberships,
 roles, archivado, normalización, atomicidad y reintentos de transiciones.
+
+FASE 2 añade `jobs/0001_initial`: Job y JobAttempt con UUID, índices de cola,
+unicidad de clave por workspace y número de intento, constraints de presupuesto,
+progreso, estado y token de ejecución. Las pruebas cubren bloqueo entre procesos,
+idempotencia tras reintentos, recuperación y rollback, progreso HTTP, CSRF,
+revocación de permisos, aislamiento y ausencia de llamadas a providers reales.

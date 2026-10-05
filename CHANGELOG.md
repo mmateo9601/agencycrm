@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.0 — 2026-10-05 · FASE 2
+
+- Job y JobAttempt con migración inicial, idempotencia por workspace, progreso,
+  presupuesto de reintentos y auditoría transaccional.
+- Worker local con bloqueo entre procesos, ejecución fuera de transacciones,
+  reintentos temporales con espera y recuperación manual de trabajos interrumpidos.
+- Contratos y mocks puros de Places, Email y WhatsApp; diagnóstico ficticio
+  ejecutable sin red ni escrituras de dominio. Tipos de fases posteriores reservados.
+- UI por workspace para encolar, consultar progreso, cancelar pendientes y recuperar
+  trabajos antiguos; permisos, CSRF y admin de solo lectura.
+- Pruebas de concurrencia, aislamiento, rollback, errores sanitizados y simulación.
+  Sin nuevas dependencias, Docker, proveedores reales ni funcionalidades de FASE 3.
+
 ## 0.1.0 — 2026-10-05 · FASE 1
 
 - Empresas, referencias externas, contactos y perfiles sociales; normalización

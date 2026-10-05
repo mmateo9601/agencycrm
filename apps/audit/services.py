@@ -6,7 +6,7 @@ from .models import AuditEvent
 
 
 def record_event(
-    *, actor: User, obj: Model, action: str, metadata: dict | None = None
+    *, actor: User | None, obj: Model, action: str, metadata: dict | None = None
 ) -> AuditEvent:
     """Record identifiers and explicit non-sensitive metadata inside the caller's transaction."""
     return AuditEvent.objects.create(
