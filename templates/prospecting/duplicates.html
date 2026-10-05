@@ -1,0 +1,6 @@
+{% extends "workspace/base.html" %}
+{% block workspace_content %}
+<h2>Posibles duplicados</h2><p>Las coincidencias ambiguas se conservan como empresas separadas. Revisión informativa; no se realizan fusiones automáticas.</p>
+{% for record in page_obj %}<div class="card card-body mb-2"><p><a href="{% url 'workspace:detail' workspace.id 'companies' record.company_id %}">{{ record.company.name }}</a> / <a href="{% url 'workspace:detail' workspace.id 'companies' record.candidate_id %}">{{ record.candidate.name }}</a></p><p>{{ record.reason }}</p></div>{% empty %}<p>No hay sugerencias.</p>{% endfor %}
+{% include 'prospecting/pagination.html' %}
+{% endblock %}

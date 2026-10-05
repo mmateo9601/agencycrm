@@ -1,0 +1,10 @@
+{% extends "workspace/base.html" %}
+{% block workspace_content %}
+<h2>Resultado de prospección</h2><p>{{ run.provider }} · {{ run.status }} · {{ run.started_at }}</p>
+<p>{{ run.results_seen }} filas · {{ run.companies_created }} empresas creadas · {{ run.companies_updated }} actualizadas · {{ run.leads_created }} leads nuevos · {{ run.duplicates }} coincidencias · {{ run.errors }} errores.</p>
+{% if run.error_message %}<p class="alert alert-warning">{{ run.error_message }}</p>{% endif %}
+<a href="{% url 'jobs:detail' workspace.id run.job_id %}">Trabajo y progreso</a> · <a href="{% url 'prospecting:detail' workspace.id run.plan_item.plan_id %}">Volver al plan</a>
+<table class="table"><thead><tr><th>Fila</th><th>Origen</th><th>Empresa</th><th>Resultado</th></tr></thead><tbody>
+{% for row in page_obj %}<tr><td>{{ row.line }}</td><td>{{ row.external_id }}</td><td>{% if row.company_id %}<a href="{% url 'workspace:detail' workspace.id 'companies' row.company_id %}">{{ row.company.name }}</a>{% endif %}</td><td>{% if row.error %}{{ row.error }}{% else %}{% if row.company_created %}Empresa creada{% else %}Empresa existente{% endif %}{% if row.lead_id %} · <a href="{% url 'workspace:detail' workspace.id 'leads' row.lead_id %}">Lead</a>{% endif %}{% endif %}</td></tr>{% endfor %}
+</tbody></table>{% include 'prospecting/pagination.html' %}
+{% endblock %}

@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "apps.crm",
     "apps.audit",
     "apps.jobs",
+    "apps.prospecting",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

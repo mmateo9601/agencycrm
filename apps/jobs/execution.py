@@ -15,6 +15,7 @@ from apps.audit.services import record_event
 from common.models import limited_metadata
 from integrations.common.errors import ProviderError
 
+from .lifecycle import sync_related_job
 from .locking import WorkerLock
 from .models import Job, JobAttempt
 
@@ -71,6 +72,7 @@ def claim_next(*, lock: WorkerLock, kinds: list[str] | None = None) -> Job | Non
         return None
     job.refresh_from_db()
     JobAttempt.objects.create(job=job, attempt_number=job.attempts, started_at=now)
+    sync_related_job(job)
     record_event(
         actor=job.created_by, obj=job, action="JOB_STARTED", metadata={"attempt": job.attempts}
     )
@@ -122,6 +124,7 @@ def finish_success(*, lock: WorkerLock, job: Job, result: dict) -> None:
         finished_at=now,
         succeeded=True,
     )
+    sync_related_job(job)
     record_event(
         actor=job.created_by, obj=job, action="JOB_SUCCEEDED", metadata={"attempt": job.attempts}
     )
@@ -173,6 +176,7 @@ def finish_failure(*, lock: WorkerLock, job: Job, error: Exception) -> None:
         traceback_excerpt=excerpt,
     )
     action = "JOB_RETRY_SCHEDULED" if retry else "JOB_FAILED"
+    sync_related_job(job)
     record_event(
         actor=job.created_by,
         obj=job,

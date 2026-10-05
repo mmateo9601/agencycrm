@@ -8,6 +8,7 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.audit.services import record_event
 
+from .lifecycle import sync_related_job
 from .locking import WorkerLock
 from .models import Job, JobAttempt
 
@@ -61,6 +62,7 @@ def requeue_stale(
                     error_type="WorkerInterrupted",
                     error_message=message,
                 )
+                sync_related_job(job)
                 record_event(
                     actor=actor,
                     obj=job,

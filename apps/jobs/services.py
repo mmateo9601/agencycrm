@@ -31,6 +31,10 @@ class JobService:
         """Persist only; duplicate keys return the existing job or reject conflicting intent."""
         workspace = workspace_access(user=user, workspace_id=workspace_id, write=True)
         payload = validate_payload(kind, payload)
+        if kind == Job.Kind.RUN_SEARCH_ITEM:
+            from apps.prospecting.services import authorize_payload
+
+            authorize_payload(user=user, workspace_id=workspace_id, payload=payload)
         if idempotency_key is not None and not isinstance(idempotency_key, str):
             raise ValidationError("La clave de idempotencia debe ser texto.")
         key = (idempotency_key.strip() or None) if idempotency_key is not None else None
@@ -98,6 +102,9 @@ class JobService:
         ):
             raise ValidationError("Solo se pueden cancelar trabajos pendientes.")
         job.refresh_from_db()
+        from .lifecycle import sync_related_job
+
+        sync_related_job(job)
         record_event(actor=user, obj=job, action="JOB_CANCELLED")
         return job
 

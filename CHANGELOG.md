@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0 — 2026-10-05 · FASE 3
+
+- SearchPlan, SearchPlanItem y SearchRun, planner acotado TEXT_QUERIES y
+  MANUAL_IMPORT; ejecución mediante RUN_SEARCH_ITEM en el worker existente.
+- CSV UTF-8 validado, límites de tamaño/filas y errores parciales por línea.
+- Ingestión transaccional de Company, fuentes, Contact y Lead con historial;
+  SearchResult conserva procedencia y evita repetir filas tras interrupciones.
+- Deduplicación por identidad externa y coincidencias de alta confianza;
+  DuplicateCandidate informa de ambigüedades sin fusionar empresas automáticamente.
+- UI de planes, ejecuciones y sugerencias; progreso mediante jobs, CSRF y
+  aislamiento por workspace. Estados sincronizados en fallo, cancelación y recovery.
+- Una migración inicial de prospección y pruebas de aceptación/regresión.
+  Sin dependencias nuevas, red, Google real ni funcionalidades de FASE 4.
+
 ## 0.2.0 — 2026-10-05 · FASE 2
 
 - Job y JobAttempt con migración inicial, idempotencia por workspace, progreso,

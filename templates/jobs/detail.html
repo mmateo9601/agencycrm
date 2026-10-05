@@ -12,7 +12,7 @@
   {% if can_delete and job.status == 'PENDING' %}<form method="post" action="{% url 'jobs:action' workspace.id job.id 'cancel' %}">{% csrf_token %}<button class="btn btn-outline-danger" type="submit">Cancelar trabajo pendiente</button></form>{% endif %}
   {% if can_delete and stale %}<form method="post" action="{% url 'jobs:action' workspace.id job.id 'recover' %}">{% csrf_token %}<p>Detén el worker antes de recuperar esta ejecución interrumpida.</p><button class="btn btn-outline-primary" type="submit">Recuperar trabajo antiguo</button></form>{% endif %}
 </section>
-{% if job.result %}<section class="card card-body mb-4"><h3 class="h5">Resultado simulado</h3><pre class="mb-0 text-break">{{ job.result }}</pre></section>{% endif %}
+{% if job.result %}<section class="card card-body mb-4"><h3 class="h5">Resultado</h3><pre class="mb-0 text-break">{{ job.result }}</pre></section>{% endif %}
 <section class="card card-body"><h3 class="h5">Historial de intentos</h3>
 {% for attempt in attempts_page %}<article class="border-bottom py-3">
 <h4 class="h6">Intento {{ attempt.attempt_number }} · {% if attempt.finished_at %}{% if attempt.succeeded %}Correcto{% else %}Fallido{% endif %}{% else %}En ejecución{% endif %}</h4>

@@ -1,9 +1,9 @@
-# AgencyCRM — FASE 2 · Jobs locales y providers mock
+# AgencyCRM — FASE 3 · Prospección mock e importación CSV
 
 Base local de AgencyCRM siguiendo `IMPLEMENTATION_PLAYBOOK_AGENCYCRM.md`.
-Implementadas FASE 0, FASE 1 y FASE 2: base Django, cuentas, espacios de trabajo,
-CRM básico, cola local de trabajos y proveedores simulados.
-Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 3.
+Implementadas FASE 0 a FASE 3: base Django, cuentas, espacios de trabajo,
+CRM básico, cola local, prospección mock e importación CSV.
+Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 4.
 
 ## Instalación (PowerShell)
 
@@ -94,9 +94,8 @@ La misma clave dentro de un workspace conserva el trabajo original y nunca lo
 reprograma, incluso después de un reintento. Cambiar tipo, payload, prioridad o
 presupuesto con esa clave produce un error.
 
-Los ocho tipos de trabajo del playbook están declarados, pero sus handlers de
-negocio se implementarán en sus fases. No se pueden encolar todavía mediante
-`JobService`: la única operación ejecutable es el diagnóstico anterior. No hay
+Los tipos de trabajo del playbook están declarados. Se ejecutan el diagnóstico
+y `RUN_SEARCH_ITEM` (FASE 3); los demás handlers llegarán en sus fases. No hay
 búsquedas reales, scoring, propuestas ni outreach. Las comprobaciones de elegibilidad
 y consentimiento pertenecen a la futura fase de outreach; no existe un handler
 de envío que permita saltárselas.
@@ -133,6 +132,76 @@ máquina y un disco local; no pretende coordinar varias máquinas. PostgreSQL o
 Celery/RQ requerirán un adaptador de coordinación apropiado, conservando los
 contratos de encolado y de proveedores.
 
+## Uso de FASE 3
+
+1. Crear una campaña con consulta, localidad y objetivo de leads; cambiarla de
+   DRAFT a READY desde la ficha de campaña.
+2. Abrir **Prospección → Nuevo plan o CSV** y seleccionar esa campaña.
+3. Para Places mock, dejar CSV vacío e indicar opcionalmente localidades, una
+   por línea. Para importar, subir un CSV UTF-8 con esta cabecera exacta:
+
+   ```csv
+   name,website,email,phone,address,city,province,country
+   Clínica Ficticia,https://clinica.example.invalid,info@example.invalid,,Calle Demo 1,A Coruña,A Coruña,ES
+   ```
+
+4. Pulsar **Crear plan y encolar**. La view guarda un plan acotado y sus jobs;
+   las empresas/contactos/leads se crean exclusivamente al procesar el worker.
+5. Mantener `python manage.py run_worker` en la segunda terminal, o procesar
+   un elemento con `python manage.py run_worker --once --kinds RUN_SEARCH_ITEM`.
+6. Abrir el trabajo para consultar progreso, o actualizar el plan para consultar
+   ejecuciones, contadores y resultados por fila con enlaces al CRM.
+7. **Reejecutar / ver pendiente** reutiliza el trabajo activo o encola una nueva
+   ejecución. Repetir el mismo POST no duplica jobs; repetir resultados no duplica
+   empresas/leads identificados. Los historiales anteriores se conservan.
+
+El planner TEXT_QUERIES acepta como máximo veinte localidades, elimina repeticiones
+y reparte un presupuesto de 1–500 resultados, con un máximo de 100 por consulta.
+El objetivo no es una garantía: una sola consulta solicita como máximo 100 aunque
+la campaña pida más. El mock devuelve siempre las tres empresas ficticias del
+escenario E2E (Clínica Norte, Clínica Atlántico y Dental Demo), independientemente
+de la localidad; no simula una base real de negocios. GEO_GRID/HYBRID, paginación
+externa y Google real quedan para la fase del provider.
+
+CSV admite hasta **200 KB y 200 filas**. Solo se usa el nombre para crear una
+empresa; los demás campos pueden estar vacíos. Las URLs requieren HTTP(S), los
+teléfonos se validan y normalizan a E.164 y los emails se validan antes de escribir.
+Un teléfono nunca se interpreta automáticamente como WhatsApp. Filas con valores
+incorrectos o distinto número de columnas aparecen con su línea y campos afectados;
+las válidas se importan. Una cabecera incorrecta, codificación inválida o CSV roto
+rechaza el fichero completo antes de encolar. Se valida extensión, tipo declarado,
+tamaño y contenido; el nombre original no se utiliza como ruta ni se guarda un
+archivo público. Entradas y snapshots limitados permanecen en la base de datos.
+
+**Identidad y procedencia:** primero se busca `provider + external_id` dentro del
+workspace. Los fixtures usan `MOCK_PLACES`, nunca `GOOGLE_PLACES`. En CSV, el
+identificador corresponde al documento normalizado y su línea; importar el mismo
+documento de nuevo conserva esa identidad. Fuera de esa identidad de origen,
+solo se enlaza automáticamente una coincidencia única de dominio/teléfono con
+nombre normalizado compatible (en esta fase, igualdad exacta). Los nombres solos
+nunca provocan una fusión. Coincidencias ambiguas de dominio/teléfono o nombre y
+dirección generan `DuplicateCandidate`, visible en **Posibles duplicados**, y
+conservan empresas separadas. La resolución/fusión manual no se implementa aún.
+
+Se conserva una fila de procedencia por resultado y ejecución, con empresa, lead,
+fecha y disposición. No se sobrescriben campos manuales existentes ni flags de
+contacto; solo se completan campos vacíos. Una empresa archivada genera error
+de fila y nunca se reactiva. Cambiar o reordenar un CSV genera un nuevo documento:
+las empresas sin identificadores fiables pueden requerir revisión manual.
+
+El provider se invoca fuera de transacciones. Cada ejecución conserva un snapshot
+limitado y cada fila se confirma junto con empresa, referencia externa, contacto,
+lead e historial, en una transacción corta. Tras un fallo temporal o recuperación,
+las filas ya confirmadas se reutilizan y sus contadores no se duplican. Estado de
+plan, elemento y ejecución sigue a los jobs, incluso en cancelación y recuperación.
+Una ejecución SUCCEEDED con errores de validación significa **importación parcial**:
+revisar siempre el contador de errores. Completar una búsqueda no completa la
+campaña comercial: esta fase no cambia su estado ni inicia outreach.
+
+El planner es síncrono porque genera como máximo veinte elementos; no necesita
+`BUILD_SEARCH_PLAN` ni un proceso adicional. Toda adquisición/ingestión se realiza
+como `RUN_SEARCH_ITEM`. No se añaden dependencias, providers reales ni llamadas de red.
+
 ## Estructura y decisiones
 
 - `config/settings/base.py`: configuración común, autenticación DRF por sesión,
@@ -150,6 +219,8 @@ contratos de encolado y de proveedores.
 - `apps/audit/`: registro mínimo append-only de las mutaciones y del ciclo de jobs.
   No guarda cuerpos, contraseñas ni payloads de formularios.
 - `apps/jobs/`: JobService, runner, recuperación, historial de intentos, UI y CLI.
+- `apps/prospecting/`: planificación, importación CSV, ingestión idempotente,
+  procedencia, sugerencias de duplicados, consultas y UI por workspace.
 - `integrations/`: contratos con dataclasses y mocks puros de Places/Email/WhatsApp;
   no acceden al ORM ni realizan llamadas de red.
 - `common/`: infraestructura compartida de CRUD, permisos, normalización y
@@ -235,7 +306,7 @@ validadas para reproducir esta entrega.
 | Ruff | Lint y formato de Python 3.14 |
 
 El lock incluye las dependencias transitivas de estas herramientas. El worker usa
-solo Django y la biblioteca estándar; FASE 2 no añade dependencias. HTTP clients,
+solo Django y la biblioteca estándar; FASE 2 y FASE 3 no añaden dependencias. HTTP clients,
 parsers y generación documental se aplazan a sus fases.
 Bootstrap es el único recurso frontend externo vendorizado; se
 copió de una distribución 5.3.2 ya disponible localmente conservando su cabecera.
@@ -281,3 +352,11 @@ unicidad de clave por workspace y número de intento, constraints de presupuesto
 progreso, estado y token de ejecución. Las pruebas cubren bloqueo entre procesos,
 idempotencia tras reintentos, recuperación y rollback, progreso HTTP, CSRF,
 revocación de permisos, aislamiento y ausencia de llamadas a providers reales.
+
+FASE 3 añade `prospecting/0001_initial`: SearchPlan, SearchPlanItem, SearchRun,
+SearchResult y DuplicateCandidate. Incluye unicidad de petición por workspace,
+elemento por secuencia, ejecución por job y fila por ejecución; constraints de
+presupuestos, estados y contadores. Las migraciones anteriores se conservan.
+Las pruebas cubren campaña → plan → worker → empresa/lead, reejecución, CSV parcial,
+normalización, dedupe conservador, rollback, snapshot tras fallo, recuperación,
+CSRF, roles e IDs ajenos incluso con varias memberships activas.

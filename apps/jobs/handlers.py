@@ -50,6 +50,14 @@ def check_mock_providers(context: ExecutionContext) -> dict:
     }
 
 
+def run_search_item(context: ExecutionContext) -> dict:
+    """Dispatch prospection without coupling provider contracts to the ORM."""
+    from apps.prospecting.execution import run_search
+
+    return run_search(context)
+
+
 HANDLERS: dict[str, Callable[[ExecutionContext], dict]] = {
     Job.Kind.CHECK_MOCK_PROVIDERS: check_mock_providers,
+    Job.Kind.RUN_SEARCH_ITEM: run_search_item,
 }

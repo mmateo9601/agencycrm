@@ -1,0 +1,14 @@
+{% extends "workspace/base.html" %}
+{% block workspace_content %}
+<h2>{{ plan.campaign.name }} · {{ plan.get_strategy_display }}</h2>
+<p>{{ plan.status }} · Objetivo: {{ plan.target_count }} · {{ plan.provider }}</p>
+<p>Los resultados mock son ficticios. Las búsquedas no garantizan alcanzar el objetivo ni generan contacto comercial.</p>
+<table class="table"><thead><tr><th>Consulta</th><th>Límite</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+{% for item in items %}<tr><td>{{ item.sequence }}. {{ item.query_text }} {{ item.location_text }}</td><td>{{ item.max_results }}</td><td>{{ item.status }}</td><td>
+{% if item.job_id %}<a href="{% url 'jobs:detail' workspace.id item.job_id %}">Ver trabajo y progreso</a>{% endif %}
+{% if can_write %}<form method="post" action="{% url 'prospecting:rerun' workspace.id item.id %}">{% csrf_token %}{{ rerun_form }}<button type="submit" class="btn btn-sm btn-outline-primary">Reejecutar / ver pendiente</button></form>{% endif %}
+</td></tr>{% endfor %}</tbody></table>
+<h3>Ejecuciones</h3>
+{% for run in page_obj %}<p><a href="{% url 'prospecting:run' workspace.id run.id %}">{{ run.started_at }} · {{ run.status }}</a> — {{ run.results_seen }} filas, {{ run.leads_created }} leads nuevos, {{ run.errors }} errores</p>{% empty %}<p>Esperando al worker.</p>{% endfor %}
+{% include 'prospecting/pagination.html' %}<a href="">Actualizar</a>
+{% endblock %}
