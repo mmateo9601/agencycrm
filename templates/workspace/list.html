@@ -1,0 +1,26 @@
+{% extends "workspace/base.html" %}
+{% block title %}{{ resource.label }} · AgencyCRM{% endblock %}
+{% block workspace_content %}
+<div class="d-flex justify-content-between mb-3"><h2 class="h4">{{ resource.label }}</h2>
+{% if can_write %}<a class="btn btn-primary" href="{% url 'workspace:create' workspace.id resource.key %}">Crear registro</a>{% endif %}</div>
+<form method="get" class="card card-body mb-4">
+  {{ filter_form.non_field_errors }}
+  <div class="row g-3">{% for field in filter_form %}<div class="col-md-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}</div>
+  <div class="mt-3"><button class="btn btn-outline-primary" type="submit">Filtrar</button> <a class="btn btn-link" href="{% url 'workspace:list' workspace.id resource.key %}">Limpiar</a></div>
+</form>
+<p class="text-secondary">{{ page_obj.paginator.count }} registros</p>
+<div class="table-responsive"><table class="table table-hover bg-white">
+  <thead><tr><th>Registro</th><th>Estado / tipo</th><th>Actualización</th><th>Acciones</th></tr></thead>
+  <tbody>{% for object in page_obj %}<tr>
+    <td><a href="{% url 'workspace:detail' workspace.id resource.key object.pk %}">{{ object }}</a></td>
+    <td>{% firstof object.get_status_display object.get_contact_type_display object.get_severity_display "—" %}{% if object.is_archived %} · Archivado{% endif %}{% if object.is_active == False %} · Inactivo{% endif %}</td>
+    <td>{{ object.updated_at|date:"d/m/Y H:i" }}</td>
+    <td>{% if can_write %}<a href="{% url 'workspace:edit' workspace.id resource.key object.pk %}">Editar</a>{% endif %}</td>
+  </tr>{% empty %}<tr><td colspan="4">No hay registros con estos filtros.</td></tr>{% endfor %}</tbody>
+</table></div>
+<nav aria-label="Paginación" class="d-flex gap-3">
+{% if page_obj.has_previous %}<a href="{% querystring page=page_obj.previous_page_number %}">Anterior</a>{% endif %}
+<span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+{% if page_obj.has_next %}<a href="{% querystring page=page_obj.next_page_number %}">Siguiente</a>{% endif %}
+</nav>
+{% endblock %}

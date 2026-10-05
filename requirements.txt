@@ -3,6 +3,8 @@ Django>=6.1,<6.2
 djangorestframework>=3.18,<3.19
 python-dotenv>=1.1,<2
 tzdata>=2025.2
+# Phase 1: validated E.164 company/contact phone numbers, without remote calls.
+phonenumbers>=9,<10
 # Development and verification.
 pytest>=8.4,<10
 pytest-django>=4.11,<5

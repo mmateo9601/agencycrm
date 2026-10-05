@@ -2,5 +2,13 @@
 {% block content %}
 <h1>AgencyCRM</h1>
 <p class="lead">Bienvenido, {{ user.get_username }}.</p>
-<p>La base de la aplicación está preparada. La configuración inicial de espacios de trabajo, miembros, agencia y servicios se realiza desde Administración.</p>
+<h2 class="h4 mt-4">Espacios de trabajo</h2>
+<div class="list-group">
+{% for workspace in workspaces %}
+  <a class="list-group-item list-group-item-action" href="{% url 'workspace:list' workspace.id 'companies' %}">{{ workspace.name }}</a>
+{% empty %}
+  <p>No tienes espacios de trabajo activos asignados. El administrador debe crear una membresía para tu usuario.</p>
+{% endfor %}
+</div>
+{% if user.is_superuser %}<p class="mt-3">Configura usuarios, membresías, agencia y servicios desde <a href="{% url 'admin:index' %}">Administración</a>. También necesitas una membresía para operar en un espacio.</p>{% endif %}
 {% endblock %}

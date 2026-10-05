@@ -3,11 +3,17 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_safe
 from django.views.generic import TemplateView
 
+from apps.accounts.selectors import workspaces_for_user
 from common.health import database_available
 
 
 class HomeView(LoginRequiredMixin, TemplateView):
     template_name = "dashboard/home.html"
+
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(
+            workspaces=workspaces_for_user(user=self.request.user), **kwargs
+        )
 
 
 @require_safe

@@ -1,0 +1,7 @@
+{% extends "workspace/base.html" %}
+{% block workspace_content %}
+<h2 class="h4">{{ resource.delete_label }} · {{ object }}</h2>
+{% if error %}<p class="alert alert-danger">{{ error }}</p>{% endif %}
+<p>{% if resource.delete_label == 'Archivar' %}El registro dejará de estar activo y conservará sus relaciones e historial.{% else %}Se eliminará este registro. La operación quedará registrada en auditoría.{% endif %}</p>
+<form method="post">{% csrf_token %}<button class="btn btn-danger" type="submit">Confirmar {{ resource.delete_label|lower }}</button> <a class="btn btn-link" href="{% url 'workspace:detail' workspace.id resource.key object.pk %}">Cancelar</a></form>
+{% endblock %}

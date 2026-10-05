@@ -21,6 +21,10 @@ INSTALLED_APPS = [
     "rest_framework",
     "apps.accounts",
     "apps.dashboard",
+    "apps.companies",
+    "apps.campaigns",
+    "apps.crm",
+    "apps.audit",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

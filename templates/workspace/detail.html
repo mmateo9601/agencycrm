@@ -1,0 +1,29 @@
+{% extends "workspace/base.html" %}
+{% block workspace_content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <h2 class="h4">{{ object }}</h2><div class="d-flex gap-2">
+    {% if can_write %}<a class="btn btn-primary" href="{% url 'workspace:edit' workspace.id resource.key object.pk %}">Editar</a>{% endif %}
+    {% if can_delete %}<a class="btn btn-outline-danger" href="{% url 'workspace:delete' workspace.id resource.key object.pk %}">{{ resource.delete_label }}</a>{% endif %}
+  </div>
+</div>
+{% if state_error %}<p class="alert alert-danger">{{ state_error }}</p>{% endif %}
+{% if can_write and campaign_target %}
+<form method="post" action="{% url 'workspace:state' workspace.id resource.key object.pk %}" class="mb-3">{% csrf_token %}<input type="hidden" name="target" value="{{ campaign_target }}"><button class="btn btn-outline-primary" type="submit">{% if campaign_target == 'READY' %}Marcar preparada{% else %}Volver a borrador{% endif %}</button></form>
+{% endif %}
+{% if resource.key == 'leads' %}<p class="text-secondary">El score se calculará cuando esté disponible la fase de scoring. Registrar un estado de contacto no envía mensajes.</p>{% endif %}
+<dl class="row card-body bg-white border rounded">{% for label, value in detail_fields %}<dt class="col-md-4">{{ label|capfirst }}</dt><dd class="col-md-8 text-break">{{ value|linebreaksbr }}</dd>{% endfor %}</dl>
+{% if can_write and transition_form %}
+<section class="card card-body mb-4"><h3 class="h5">Cambiar estado</h3>
+{% if transition_form.fields.target.choices %}<form method="post" action="{% url 'workspace:state' workspace.id resource.key object.pk %}">{% csrf_token %}
+  {{ transition_form.as_p }}<button class="btn btn-primary" type="submit">Registrar cambio</button>
+</form>{% else %}<p>No hay transiciones disponibles para este lead.</p>{% endif %}</section>
+{% endif %}
+{% for label, records in related_sections %}<section class="card card-body mb-3"><h3 class="h5">{{ label }}</h3>
+<ul class="mb-0">{% for record in records %}<li>{{ record }}</li>{% empty %}<li>Sin registros.</li>{% endfor %}</ul><small class="text-secondary">Hasta 25 registros relacionados. Usa el listado correspondiente para consultar todos.</small></section>{% endfor %}
+{% if history_page %}
+<section class="card card-body"><h3 class="h5">Historial de estados</h3>
+<table class="table"><thead><tr><th>Fecha</th><th>De → A</th><th>Motivo</th><th>Usuario</th></tr></thead><tbody>
+{% for item in history_page %}<tr><td>{{ item.created_at|date:"d/m/Y H:i" }}</td><td>{{ item.from_status|default:'Inicio' }} → {{ item.get_to_status_display }}</td><td>{{ item.reason }}</td><td>{{ item.actor|default:'Usuario eliminado' }}</td></tr>{% endfor %}
+</tbody></table><nav aria-label="Historial">{% if history_page.has_previous %}<a href="{% querystring history_page=history_page.previous_page_number %}">Anterior</a>{% endif %} Página {{ history_page.number }} de {{ history_page.paginator.num_pages }} {% if history_page.has_next %}<a href="{% querystring history_page=history_page.next_page_number %}">Siguiente</a>{% endif %}</nav>
+</section>{% endif %}
+{% endblock %}

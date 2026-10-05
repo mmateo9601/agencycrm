@@ -1,0 +1,42 @@
+COMPANY_FIELDS = (
+    "name",
+    "legal_name",
+    "primary_sector",
+    "description",
+    "website",
+    "phone",
+    "address_line",
+    "city",
+    "province",
+    "postal_code",
+    "country_code",
+    "latitude",
+    "longitude",
+    "google_rating",
+    "google_review_count",
+    "do_not_contact",
+)
+CONTACT_FIELDS = (
+    "company",
+    "full_name",
+    "job_title",
+    "email",
+    "phone",
+    "whatsapp_e164",
+    "contact_type",
+    "is_primary",
+    "is_business_contact",
+    "source_url",
+    "observed_at",
+    "do_not_contact",
+    "notes",
+)
+EXTERNAL_REF_FIELDS = (
+    "company",
+    "provider",
+    "external_id",
+    "external_url",
+    "observed_at",
+    "metadata",
+)
+SOCIAL_FIELDS = ("company", "platform", "url", "username", "observed_at", "metadata")

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div><a href="{% url 'home' %}">Cambiar espacio</a><h1 class="h3 mb-0">{{ workspace.name }}</h1></div>
+  {% if not can_write %}<span class="badge text-bg-secondary">Solo lectura</span>{% endif %}
+</div>
+<nav class="nav nav-pills gap-1 mb-4" aria-label="Navegación del espacio">
+  {% for item in resources %}<a class="nav-link {% if resource.key == item.key %}active{% endif %}" href="{% url 'workspace:list' workspace.id item.key %}">{{ item.label }}</a>{% endfor %}
+</nav>
+{% block workspace_content %}{% endblock %}
+{% endblock %}

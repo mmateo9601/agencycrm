@@ -1,0 +1,15 @@
+{% extends "workspace/base.html" %}
+{% block workspace_content %}
+<h2 class="h4">{% if editing %}Editar{% else %}Crear{% endif %} · {{ resource.label }}</h2>
+<form method="post" class="card card-body">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="row g-3">
+  {% for field in form %}<div class="col-md-6">
+    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+    {{ field }}{% if field.errors %}<div class="text-danger">{{ field.errors }}</div>{% endif %}
+    {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+  </div>{% endfor %}</div>
+  <div class="mt-4"><button class="btn btn-primary" type="submit">Guardar</button> <a class="btn btn-link" href="{% url 'workspace:list' workspace.id resource.key %}">Cancelar</a></div>
+</form>
+{% endblock %}
