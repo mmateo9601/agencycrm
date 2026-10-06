@@ -2,7 +2,8 @@
 {% block workspace_content %}
 <h2>{{ plan.campaign.name }} · {{ plan.get_strategy_display }}</h2>
 <p>{{ plan.status }} · Objetivo: {{ plan.target_count }} · {{ plan.provider }}</p>
-<p>Los resultados mock son ficticios. Las búsquedas no garantizan alcanzar el objetivo ni generan contacto comercial.</p>
+<p>Las búsquedas no garantizan alcanzar el objetivo ni generan contacto comercial. Google usa una página de hasta veinte resultados por consulta.</p>
+{% if plan.provider == 'GOOGLE_PLACES' %}<p>Peticiones Google reservadas en campaña: {{ plan.campaign.places_requests_used }} / {{ plan.campaign.places_request_limit }}. Cada intento HTTP consume presupuesto, incluidos los fallidos. El importe real depende de la facturación del proveedor.</p>{% endif %}
 <table class="table"><thead><tr><th>Consulta</th><th>Límite</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
 {% for item in items %}<tr><td>{{ item.sequence }}. {{ item.query_text }} {{ item.location_text }}</td><td>{{ item.max_results }}</td><td>{{ item.status }}</td><td>
 {% if item.job_id %}<a href="{% url 'jobs:detail' workspace.id item.job_id %}">Ver trabajo y progreso</a>{% endif %}

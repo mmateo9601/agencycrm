@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
@@ -10,6 +11,8 @@ from apps.jobs.models import Job
 from apps.jobs.services import JobService
 from common.access import workspace_access
 from common.selectors import scoped_record
+from integrations.common.errors import ProviderError
+from integrations.common.factory import places_provider
 
 from .models import SearchPlan, SearchPlanItem
 from .planner import fingerprint, parse_csv, text_items
@@ -55,9 +58,25 @@ def create_plan(
             locations or [campaign.target_location_text],
             campaign.desired_leads,
         )
-        strategy, provider = SearchPlan.Strategy.TEXT_QUERIES, "MOCK_PLACES"
+        strategy = SearchPlan.Strategy.TEXT_QUERIES
+        try:
+            # Construction checks configuration without performing I/O.
+            places_provider()
+        except ProviderError as error:
+            raise ValidationError(error.public_message) from None
+        provider = "GOOGLE_PLACES" if settings.PLACES_PROVIDER == "google" else "MOCK_PLACES"
+        if provider == "GOOGLE_PLACES":
+            for item in items:
+                item["max_results"] = min(20, item["max_results"])
         target = campaign.desired_leads
-    digest = fingerprint({"campaign": str(campaign.pk), "items": items, "provider": provider})
+    digest = fingerprint(
+        {
+            "campaign": str(campaign.pk),
+            "items": items,
+            "provider": provider,
+            **({"country": campaign.target_country_code} if provider == "GOOGLE_PLACES" else {}),
+        }
+    )
     previous = SearchPlan.objects.filter(workspace_id=workspace_id, request_key=request_key).first()
     if previous:
         if previous.request_fingerprint != digest:
@@ -71,6 +90,7 @@ def create_plan(
         target_count=target,
         request_key=request_key,
         request_fingerprint=digest,
+        country_code=campaign.target_country_code,
     )
     for sequence, values in enumerate(items, 1):
         item = SearchPlanItem.objects.create(

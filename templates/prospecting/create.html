@@ -1,7 +1,8 @@
 {% extends "workspace/base.html" %}
 {% block workspace_content %}
 <h2>Crear plan de prospección</h2>
-<p>Selecciona una campaña preparada. Places mock devuelve negocios ficticios; CSV importa tus filas. El worker procesará los datos.</p>
+<p>{{ provider_status }}</p>
+<p>Selecciona una campaña preparada. El límite total de peticiones Google se configura en la campaña. CSV importa tus filas sin usar Google. El worker procesará los datos.</p>
 <p>Cabecera CSV exacta: <code>name,website,email,phone,address,city,province,country</code>. UTF-8, separador coma. El CSV sustituye la búsqueda mock.</p>
 <form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary" type="submit">Crear plan y encolar</button></form>
 {% endblock %}

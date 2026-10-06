@@ -1,11 +1,25 @@
 from uuid import UUID
 
+from django.conf import settings
 from django.db.models import QuerySet
 
 from apps.accounts.models import User
 from common.selectors import scoped_record, scoped_records
 
 from .models import DuplicateCandidate, SearchPlan, SearchPlanItem, SearchResult, SearchRun
+
+
+def provider_status() -> str:
+    """Describe acquisition configuration without exposing or contacting credentials."""
+    if settings.PLACES_PROVIDER == "mock":
+        return "Places mock: datos ficticios, sin llamadas externas."
+    if (
+        settings.PLACES_PROVIDER == "google"
+        and settings.GOOGLE_PLACES_ENABLED
+        and settings.GOOGLE_PLACES_API_KEY
+    ):
+        return "Google Places real habilitado: cada búsqueda puede consumir cuota facturable."
+    return "Places desactivado: revisa la configuración. La importación CSV sigue disponible."
 
 
 def plans_for_user(*, user: User, workspace_id: UUID) -> QuerySet:

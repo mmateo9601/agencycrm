@@ -28,7 +28,7 @@ def check_mock_providers(context: ExecutionContext) -> dict:
         else ""
     )
     context.progress(0, 3)
-    page = places_provider(failure=failure).text_search(
+    page = places_provider(provider="mock", failure=failure).text_search(
         PlaceTextSearchRequest(query="Diagnóstico ficticio")
     )
     context.progress(1, 3)

@@ -27,13 +27,19 @@ def normalized_company(*, run: SearchRun, data: dict) -> tuple[Company, str]:
         "city": "city",
         "province": "province",
         "country": "country_code",
+        "postal_code": "postal_code",
     }
     if any(not isinstance(value, str) for value in data.values()):
         raise ValidationError("Todos los campos deben ser texto.")
     values = {dest: data.get(source, "").strip() for source, dest in fields.items()}
-    values["country_code"] = (
-        values["country_code"] or run.plan_item.plan.campaign.target_country_code
-    ).upper()
+    values["country_code"] = (values["country_code"] or run.plan_item.plan.country_code).upper()
+    for source, field in {
+        "latitude": "latitude",
+        "longitude": "longitude",
+        "rating": "google_rating",
+        "review_count": "google_review_count",
+    }.items():
+        values[field] = data.get(source) or None
     company = Company(
         workspace_id=run.workspace_id,
         primary_sector=run.plan_item.plan.campaign.target_sector,
@@ -124,8 +130,20 @@ def ingest_row(*, run: SearchRun, user: User, row: dict) -> SearchResult:
         raise ValidationError("La empresa existente está archivada; requiere revisión manual.")
     else:
         # Preserve curated values and all contact/suppression flags.
-        for field in ("website", "phone", "address_line", "city", "province", "primary_sector"):
+        for field in (
+            "website",
+            "phone",
+            "address_line",
+            "city",
+            "province",
+            "primary_sector",
+            "postal_code",
+        ):
             if not getattr(company, field) and getattr(incoming, field):
+                setattr(company, field, getattr(incoming, field))
+                updated = True
+        for field in ("latitude", "longitude", "google_rating", "google_review_count"):
+            if getattr(company, field) is None and getattr(incoming, field) is not None:
                 setattr(company, field, getattr(incoming, field))
                 updated = True
         if updated:
@@ -137,6 +155,7 @@ def ingest_row(*, run: SearchRun, user: User, row: dict) -> SearchResult:
             company=company,
             provider=run.provider,
             external_id=external_id,
+            external_url=row["data"].get("external_url", ""),
             metadata={"first_search_run": str(run.pk)},
         )
     else:

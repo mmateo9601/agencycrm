@@ -1,9 +1,9 @@
-# AgencyCRM — FASE 3 · Prospección mock e importación CSV
+# AgencyCRM — FASE 4 · Google Places
 
 Base local de AgencyCRM siguiendo `IMPLEMENTATION_PLAYBOOK_AGENCYCRM.md`.
-Implementadas FASE 0 a FASE 3: base Django, cuentas, espacios de trabajo,
-CRM básico, cola local, prospección mock e importación CSV.
-Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 4.
+Implementadas FASE 0 a FASE 4: base Django, CRM, cola local, prospección mock,
+CSV y adaptador Google Places con activación explícita.
+Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 5.
 
 ## Instalación (PowerShell)
 
@@ -95,8 +95,8 @@ reprograma, incluso después de un reintento. Cambiar tipo, payload, prioridad o
 presupuesto con esa clave produce un error.
 
 Los tipos de trabajo del playbook están declarados. Se ejecutan el diagnóstico
-y `RUN_SEARCH_ITEM` (FASE 3); los demás handlers llegarán en sus fases. No hay
-búsquedas reales, scoring, propuestas ni outreach. Las comprobaciones de elegibilidad
+y `RUN_SEARCH_ITEM`; los demás handlers llegarán en sus fases. No hay
+scoring, propuestas ni outreach. Las comprobaciones de elegibilidad
 y consentimiento pertenecen a la futura fase de outreach; no existe un handler
 de envío que permita saltárselas.
 
@@ -160,8 +160,8 @@ y reparte un presupuesto de 1–500 resultados, con un máximo de 100 por consul
 El objetivo no es una garantía: una sola consulta solicita como máximo 100 aunque
 la campaña pida más. El mock devuelve siempre las tres empresas ficticias del
 escenario E2E (Clínica Norte, Clínica Atlántico y Dental Demo), independientemente
-de la localidad; no simula una base real de negocios. GEO_GRID/HYBRID, paginación
-externa y Google real quedan para la fase del provider.
+de la localidad; no simula una base real de negocios. GEO_GRID/HYBRID y paginación
+externa siguen pendientes; Google real se configura como se explica en FASE 4.
 
 CSV admite hasta **200 KB y 200 filas**. Solo se usa el nombre para crear una
 empresa; los demás campos pueden estar vacíos. Las URLs requieren HTTP(S), los
@@ -200,7 +200,72 @@ campaña comercial: esta fase no cambia su estado ni inicia outreach.
 
 El planner es síncrono porque genera como máximo veinte elementos; no necesita
 `BUILD_SEARCH_PLAN` ni un proceso adicional. Toda adquisición/ingestión se realiza
-como `RUN_SEARCH_ITEM`. No se añaden dependencias, providers reales ni llamadas de red.
+como `RUN_SEARCH_ITEM`. Mock y CSV siguen funcionando sin credenciales ni red.
+
+## Uso de FASE 4
+
+La configuración por defecto continúa siendo mock. Para habilitar Google, el operador
+debe configurar **las tres condiciones** siguientes en `.env` y reiniciar servidor
+y worker (nunca introducir la clave en formularios, Git o comandos compartidos):
+
+```env
+PLACES_PROVIDER=google
+GOOGLE_PLACES_ENABLED=true
+GOOGLE_PLACES_API_KEY=valor_privado
+PLACES_CACHE_SECONDS=300
+```
+
+Con una condición ausente, Google queda desactivado; no hay fallback silencioso.
+La UI muestra el estado sin consultar la API ni revelar credenciales. CSV sigue
+disponible. Email y WhatsApp permanecen mock con `OUTREACH_MODE=simulation`:
+habilitar adquisición en Google no habilita mensajes reales.
+
+En la campaña, configurar **Límite total de peticiones Google** (0–1000,
+predeterminado 20; cero bloquea nuevas peticiones). Crear un plan desde Prospección
+y ejecutar el worker. Cada plan conserva el proveedor elegido y el país de la
+campaña en el momento de crearlo. Los planes mock anteriores y el diagnóstico
+siempre siguen siendo mock, aunque cambie la configuración global.
+
+La UI utiliza Text Search de Places API (New), una página de hasta veinte resultados
+por consulta, sin paginación automática. Si Google indica más resultados, la ejecución
+lo muestra. No se guarda ni se reutiliza el token de página. Nearby Search y Place
+Details están implementados y probados como contratos de adaptador; no se añade
+una UI geográfica ni se solicitan Details automáticamente después de Text Search.
+El FieldMask es explícito: identidad/nombre, dirección/componentes, coordenadas,
+web, teléfono internacional, rating/número de reseñas y URL de Maps. Estos datos
+se normalizan y se utilizan en Company y CompanyExternalRef. No se piden fotos
+ni contenido de reseñas.
+
+**Presupuesto:** se reserva una petición en una transacción corta **antes** de HTTP.
+Éxitos, timeouts, 429 y 5xx consumen reserva; si el proceso cae entre la reserva
+y HTTP, esa reserva se conserva por prudencia. Los reintentos y nuevas ejecuciones
+comparten el límite total de campaña. Editar la campaña no reinicia el contador.
+El límite puede aumentarse explícitamente desde su formulario. Las fichas de plan,
+campaña y ejecución muestran contadores; son reservas de solicitudes, no importes
+monetarios ni una reproducción de la factura de Google. No se codifican tarifas.
+
+**Caché:** snapshots normalizados por workspace y fingerprint completo de consulta,
+localidad, país, límite y versión de máscara. La ventana es configurable entre cero
+(desactivada) y 3600 segundos; predeterminado 300. Un hit no consume presupuesto.
+Entradas expiradas nunca se reutilizan y se eliminan durante la siguiente adquisición
+del workspace. El historial normalizado de la ejecución sigue persistiendo como
+procedencia. Reejecutar usa la deduplicación existente por `GOOGLE_PLACES + place_id`;
+la fuente mock mantiene su espacio de identificadores separado.
+
+**Transporte y errores:** `httpx`, HTTPS con origen fijo `places.googleapis.com`,
+verificación TLS, sin proxies heredados ni redirects. Límite de respuesta 1 MB,
+JSON y respuesta sin compresión. Timeout de conexión 5 s y lectura 10 s; se comprueba
+el presupuesto de tiempo transcurrido de 20 s al recibir cabeceras y cada fragmento
+(una lectura en curso puede tardar hasta su timeout). 401/403 son permanentes;
+429 respeta Retry-After acotado a un día; timeout/5xx usan los reintentos limitados
+del job. Mensajes externos, headers de autenticación y tokens no se registran en
+JobAttempt ni audit. No se invoca HTTP desde views ni dentro de transacciones.
+
+La validación de esta entrega usa exclusivamente `httpx.MockTransport` con fixtures
+ficticias y bloqueo global de sockets/DNS. **No se ha realizado una consulta con
+credenciales reales**; la comprobación operativa contra una cuenta Google queda
+pendiente de que el operador configure sus credenciales y presupuesto. No se
+modifica `.env` para activar Google durante la implementación.
 
 ## Estructura y decisiones
 
@@ -221,8 +286,8 @@ como `RUN_SEARCH_ITEM`. No se añaden dependencias, providers reales ni llamadas
 - `apps/jobs/`: JobService, runner, recuperación, historial de intentos, UI y CLI.
 - `apps/prospecting/`: planificación, importación CSV, ingestión idempotente,
   procedencia, sugerencias de duplicados, consultas y UI por workspace.
-- `integrations/`: contratos con dataclasses y mocks puros de Places/Email/WhatsApp;
-  no acceden al ORM ni realizan llamadas de red.
+- `integrations/`: contratos con dataclasses, mocks puros y adaptador Google Places;
+  los providers no acceden al ORM ni cambian el dominio.
 - `common/`: infraestructura compartida de CRUD, permisos, normalización y
   presentación. El registro HTTP de recursos es una lista cerrada de modelos.
 - `templates/`, `static/vendor/bootstrap/`: HTML con autoescape y Bootstrap
@@ -268,13 +333,12 @@ actualización condicional para detectar escrituras concurrentes. Un reintento
 al mismo estado no duplica historial. Estado, historial y auditoría se guardan
 en una sola transacción. Los estados finales no se reabren en esta fase.
 Las campañas solo pasan de DRAFT a READY, vuelven a DRAFT o se archivan;
-RUNNING requiere la futura fase de búsquedas. No hay detección automática de
-oportunidades ni cálculo de scoring todavía.
+los planes tienen su propio estado de ejecución y no completan automáticamente
+la campaña comercial. No hay detección automática de oportunidades ni scoring todavía.
 
 CSRF permanece activo en login, logout y admin. Los tests bloquean conexiones
-salientes y DNS. No hay llamadas externas de aplicación ni envíos reales;
-los settings de provider son valores mock fijos en esta fase. La factoría rechaza
-cualquier modo distinto de simulation/mock y nunca recurre a un provider real.
+salientes y DNS. No hay envíos reales; Google solo puede realizar búsquedas tras
+activación explícita. La factoría de mensajes rechaza cualquier provider real.
 
 El campo `AgencyProfile.logo` está reservado, no editable todavía. No se habilitan
 uploads ni se publican URLs de media sin autorización; validación de imágenes,
@@ -300,14 +364,15 @@ validadas para reproducir esta entrega.
 | python-dotenv | Carga de `.env` local sin sobrescribir el entorno |
 | tzdata | Base IANA para Europe/Madrid, necesaria en Windows |
 | phonenumbers | Validación y normalización E.164 de empresas/contactos, sin red |
+| httpx 0.28.x | Cliente HTTP de Places con timeouts y transporte sustituible en tests |
 | pytest / pytest-django | Pruebas y bases de datos de test aisladas |
 | factory-boy | Datos ficticios reproducibles de test |
 | coverage | Medición de cobertura (umbral 80%) |
 | Ruff | Lint y formato de Python 3.14 |
 
 El lock incluye las dependencias transitivas de estas herramientas. El worker usa
-solo Django y la biblioteca estándar; FASE 2 y FASE 3 no añaden dependencias. HTTP clients,
-parsers y generación documental se aplazan a sus fases.
+solo Django y la biblioteca estándar; FASE 4 añade httpx para la adquisición.
+Parsing HTML y generación documental se aplazan a sus fases.
 Bootstrap es el único recurso frontend externo vendorizado; se
 copió de una distribución 5.3.2 ya disponible localmente conservando su cabecera.
 
@@ -360,3 +425,10 @@ presupuestos, estados y contadores. Las migraciones anteriores se conservan.
 Las pruebas cubren campaña → plan → worker → empresa/lead, reejecución, CSV parcial,
 normalización, dedupe conservador, rollback, snapshot tras fallo, recuperación,
 CSRF, roles e IDs ajenos incluso con varias memberships activas.
+
+FASE 4 añade dos migraciones `0002`: campañas incorpora límite/contador de peticiones;
+prospección incorpora país del plan (con backfill desde la campaña), contador de
+peticiones por ejecución, indicador de caché y PlacesCache aislada por workspace.
+No se modifican migraciones aplicadas anteriormente. Las pruebas de adaptador y
+flujo cubren máscaras, normalización, fallos HTTP, credenciales ausentes, consumo
+antes de dispatch, reintentos, caché/expiración/aislamiento y deduplicación.

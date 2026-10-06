@@ -33,6 +33,7 @@ class SearchPlan(WorkspaceModel):
     completed_at = models.DateTimeField(null=True, blank=True)
     request_key = models.UUIDField()
     request_fingerprint = models.CharField(max_length=64)
+    country_code = models.CharField(max_length=2, default="ES")
 
     class Meta:
         ordering = ["-created_at", "id"]
@@ -98,6 +99,8 @@ class SearchRun(WorkspaceModel):
     started_at = models.DateTimeField(default=timezone.now)
     finished_at = models.DateTimeField(null=True, blank=True)
     results_seen = models.PositiveIntegerField(default=0)
+    requests_count = models.PositiveIntegerField(default=0)
+    cache_hit = models.BooleanField(default=False)
     companies_created = models.PositiveIntegerField(default=0)
     companies_updated = models.PositiveIntegerField(default=0)
     leads_created = models.PositiveIntegerField(default=0)
@@ -178,4 +181,20 @@ class DuplicateCandidate(WorkspaceModel):
                 condition=~models.Q(company=models.F("candidate")),
                 name="different_duplicate_companies",
             ),
+        ]
+
+
+class PlacesCache(WorkspaceModel):
+    """Short-lived normalized snapshots, isolated by workspace and complete request fingerprint."""
+
+    fingerprint = models.CharField(max_length=64)
+    rows = models.JSONField(default=list, blank=True, validators=[bounded_rows])
+    truncated = models.BooleanField(default=False)
+    expires_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["workspace", "fingerprint"], name="unique_workspace_places_cache"
+            )
         ]

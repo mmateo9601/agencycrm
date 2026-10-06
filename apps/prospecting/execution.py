@@ -12,6 +12,7 @@ from common.access import workspace_access
 from integrations.common.contracts import PlaceTextSearchRequest
 from integrations.common.factory import places_provider
 
+from .acquisition import acquire_google, page_rows
 from .ingestion import ingest_row
 from .models import SearchPlanItem, SearchResult, SearchRun
 from .planner import fingerprint
@@ -27,7 +28,7 @@ def execution_job(context: ExecutionContext) -> Job:
 
 
 def run_search(context: ExecutionContext) -> dict:
-    """Call a pure mock outside transactions, then persist each disposition once."""
+    """Acquire through the plan's fixed provider, then persist each disposition once."""
     job = execution_job(context)
     item = SearchPlanItem.objects.select_related("plan__campaign").get(
         pk=context.payload["item_id"],
@@ -51,6 +52,11 @@ def run_search(context: ExecutionContext) -> dict:
                         "location": item.location_text,
                         "max_results": item.max_results,
                         "rows": item.import_rows,
+                        **(
+                            {"country": item.plan.country_code, "mask_version": 1}
+                            if item.plan.provider == "GOOGLE_PLACES"
+                            else {}
+                        ),
                     }
                 ),
             },
@@ -58,41 +64,26 @@ def run_search(context: ExecutionContext) -> dict:
     if not run.snapshot_ready:
         if item.plan.strategy == "MANUAL_IMPORT":
             rows = item.import_rows
-            requests = 0
+            metadata = {"requests": 0, "simulated": False}
+        elif item.plan.provider == "GOOGLE_PLACES":
+            provider = places_provider(provider="google")
+            rows, metadata = acquire_google(run=run, provider=provider)
         else:
-            # Phase 3 is mock only. No provider JSON escapes into the domain.
-            page = places_provider().text_search(
+            page = places_provider(provider="mock").text_search(
                 PlaceTextSearchRequest(
                     query=item.query_text,
                     location=item.location_text,
                     limit=item.max_results,
                 )
             )
-            if len(page.places) > item.max_results or page.next_cursor is not None:
-                raise ValidationError("Respuesta del proveedor fuera del límite de esta fase.")
-            rows = [
-                {
-                    "line": index,
-                    "external_id": place.external_id,
-                    "data": {
-                        "name": place.name,
-                        "website": place.website,
-                        "city": place.city,
-                        "country": place.country_code,
-                        "phone": place.phone,
-                    },
-                }
-                for index, place in enumerate(page.places, 1)
-            ]
-            requests = 1
+            rows = page_rows(page, item.max_results)
+            metadata = {"requests": 1, "simulated": True}
         with transaction.atomic():
             execution_job(context)
+            run.refresh_from_db()
             run.snapshot = rows
             run.snapshot_ready = True
-            run.provider_metadata = {
-                "requests": requests,
-                "simulated": item.plan.provider == "MOCK_PLACES",
-            }
+            run.provider_metadata = metadata
             run.save()
     total = len(run.snapshot)
     for index, row in enumerate(run.snapshot, 1):

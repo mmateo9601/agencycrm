@@ -27,6 +27,14 @@ class Campaign(WorkspaceModel):
         max_length=2, default="ES", validators=[RegexValidator(r"^[A-Z]{2}$")]
     )
     desired_leads = models.PositiveIntegerField(default=25, validators=[MinValueValidator(1)])
+    places_request_limit = models.PositiveIntegerField(
+        "Límite total de peticiones Google",
+        default=20,
+        validators=[MinValueValidator(0), MaxValueValidator(1000)],
+    )
+    places_requests_used = models.PositiveIntegerField(
+        "Peticiones Google reservadas", default=0, editable=False
+    )
     minimum_score = models.PositiveSmallIntegerField(default=0, validators=[MaxValueValidator(100)])
     require_manual_approval = models.BooleanField(default=True)
     created_by = models.ForeignKey(
@@ -41,6 +49,10 @@ class Campaign(WorkspaceModel):
     class Meta:
         ordering = ["-created_at", "id"]
         constraints = [
+            models.CheckConstraint(
+                condition=models.Q(places_request_limit__lte=1000),
+                name="campaign_places_limit_range",
+            ),
             models.CheckConstraint(
                 condition=models.Q(minimum_score__lte=100), name="campaign_score_range"
             ),

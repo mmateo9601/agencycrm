@@ -14,6 +14,7 @@ from .selectors import (
     plan_items,
     plan_search_runs,
     plans_for_user,
+    provider_status,
     results_for_user,
     run_for_user,
 )
@@ -22,7 +23,16 @@ from .services import create_plan, enqueue_item
 
 class ProspectingView(JobsView):
     def context(self, **kwargs):
-        return super().context(**({"jobs_active": False, "prospecting_active": True} | kwargs))
+        return super().context(
+            **(
+                {
+                    "jobs_active": False,
+                    "prospecting_active": True,
+                    "provider_status": provider_status(),
+                }
+                | kwargs
+            )
+        )
 
 
 class PlanListView(ProspectingView):

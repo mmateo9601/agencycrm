@@ -5,6 +5,8 @@ python-dotenv>=1.1,<2
 tzdata>=2025.2
 # Phase 1: validated E.164 company/contact phone numbers, without remote calls.
 phonenumbers>=9,<10
+# Phase 4: bounded HTTP transport and injectable mock transport for Places API New.
+httpx>=0.28,<0.29
 # Development and verification.
 pytest>=8.4,<10
 pytest-django>=4.11,<5

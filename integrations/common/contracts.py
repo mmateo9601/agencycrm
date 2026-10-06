@@ -8,6 +8,7 @@ class PlaceTextSearchRequest:
     query: str
     location: str = ""
     limit: int = 20
+    region_code: str = "ES"
 
 
 @dataclass(frozen=True)
@@ -26,12 +27,21 @@ class PlaceDetails:
     city: str
     country_code: str = "ES"
     phone: str = ""
+    address: str = ""
+    province: str = ""
+    postal_code: str = ""
+    latitude: str = ""
+    longitude: str = ""
+    rating: str = ""
+    review_count: str = ""
+    external_url: str = ""
 
 
 @dataclass(frozen=True)
 class PlaceSearchPage:
     places: tuple[PlaceDetails, ...]
     next_cursor: str | None = None
+    truncated: bool = False
 
 
 class PlacesProvider(Protocol):

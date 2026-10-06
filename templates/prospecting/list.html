@@ -1,6 +1,7 @@
 {% extends "workspace/base.html" %}
 {% block workspace_content %}
 <h2>Planes de prospección</h2>
+<p>{{ provider_status }}</p>
 {% if can_write %}<a class="btn btn-primary" href="{% url 'prospecting:create' workspace.id %}">Nuevo plan o CSV</a>{% endif %}
 <a class="btn btn-outline-secondary" href="{% url 'prospecting:duplicates' workspace.id %}">Posibles duplicados</a>
 <table class="table mt-3"><thead><tr><th>Campaña</th><th>Origen</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>

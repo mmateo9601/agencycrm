@@ -1,6 +1,8 @@
 {% extends "workspace/base.html" %}
 {% block workspace_content %}
 <h2>Resultado de prospección</h2><p>{{ run.provider }} · {{ run.status }} · {{ run.started_at }}</p>
+{% if run.provider == 'GOOGLE_PLACES' %}<p>Peticiones HTTP reservadas: {{ run.requests_count }} · Caché: {{ run.cache_hit|yesno:'sí,no' }}. No es una estimación monetaria.</p>{% endif %}
+{% if run.provider_metadata.truncated %}<p class="alert alert-info">El proveedor indica más resultados; se ha conservado una sola página para limitar consumo.</p>{% endif %}
 <p>{{ run.results_seen }} filas · {{ run.companies_created }} empresas creadas · {{ run.companies_updated }} actualizadas · {{ run.leads_created }} leads nuevos · {{ run.duplicates }} coincidencias · {{ run.errors }} errores.</p>
 {% if run.error_message %}<p class="alert alert-warning">{{ run.error_message }}</p>{% endif %}
 <a href="{% url 'jobs:detail' workspace.id run.job_id %}">Trabajo y progreso</a> · <a href="{% url 'prospecting:detail' workspace.id run.plan_item.plan_id %}">Volver al plan</a>

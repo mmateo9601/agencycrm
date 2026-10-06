@@ -91,9 +91,13 @@ SECURE_REFERRER_POLICY = "same-origin"
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2_000_000
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2_000_000
 MAILERS = {"default": {"BACKEND": "django.core.mail.backends.console.EmailBackend"}}
-# Phase 2 only provides local mock adapters; these values cannot enable external I/O.
+# Outbound messaging remains simulation-only. Places has a separate explicit opt-in.
 OUTREACH_MODE = "simulation"
-EMAIL_PROVIDER = WHATSAPP_PROVIDER = AI_PROVIDER = PLACES_PROVIDER = "mock"
+EMAIL_PROVIDER = WHATSAPP_PROVIDER = AI_PROVIDER = "mock"
+PLACES_PROVIDER = os.getenv("PLACES_PROVIDER", "mock").strip().lower()
+GOOGLE_PLACES_ENABLED = os.getenv("GOOGLE_PLACES_ENABLED", "false").lower() == "true"
+GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "").strip()
+PLACES_CACHE_SECONDS = int(os.getenv("PLACES_CACHE_SECONDS", "300"))
 JOB_RETRY_BASE_SECONDS = 5
 JOB_STALE_AFTER_SECONDS = 900
 LOGGING = {
@@ -102,4 +106,8 @@ LOGGING = {
     "formatters": {"standard": {"format": "{asctime} {levelname} {name}: {message}", "style": "{"}},
     "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "standard"}},
     "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        "httpx": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "httpcore": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+    },
 }

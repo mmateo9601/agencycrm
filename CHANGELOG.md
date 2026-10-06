@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 — 2026-10-06 · FASE 4
+
+- GooglePlacesProvider con Text Search, Nearby Search y Place Details, FieldMasks
+  explícitos, origen fijo, límites de respuesta/tiempo y errores normalizados.
+- Activación por entorno; mock sigue siendo predeterminado y cada plan conserva
+  su proveedor. Email/WhatsApp permanecen simulados.
+- Presupuesto acumulado por campaña reservado antes de HTTP, caché por workspace,
+  contadores visibles y procedencia GOOGLE_PLACES; sin paginación o Details implícitos.
+- Dos migraciones aditivas para presupuestos, país del plan, contadores y caché.
+- httpx justificado y versiones fijadas; pruebas HTTP simuladas con red bloqueada.
+- Sin consulta real con credenciales: queda pendiente la verificación operativa
+  del operador. Sin funcionalidades de FASE 5.
+
 ## 0.3.0 — 2026-10-05 · FASE 3
 
 - SearchPlan, SearchPlanItem y SearchRun, planner acotado TEXT_QUERIES y

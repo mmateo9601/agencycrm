@@ -5,7 +5,7 @@ from integrations.google_places.mock import MockPlacesProvider
 from integrations.whatsapp.mock import MockWhatsAppProvider
 
 from .contracts import OutboundProvider, PlacesProvider
-from .errors import ProviderPermanentError
+from .errors import ProviderConfigurationError, ProviderPermanentError
 
 
 def _require_simulation(provider: str) -> None:
@@ -13,10 +13,23 @@ def _require_simulation(provider: str) -> None:
         raise ProviderPermanentError("Live providers are unavailable in this phase")
 
 
-def places_provider(*, failure: str = "") -> PlacesProvider:
-    """Fail closed if configuration requests anything other than simulation."""
-    _require_simulation(settings.PLACES_PROVIDER)
-    return MockPlacesProvider(failure=failure)
+def places_provider(*, failure: str = "", provider: str | None = None) -> PlacesProvider:
+    """Respect the plan's fixed provider; real acquisition is independent of messaging."""
+    selected = provider or settings.PLACES_PROVIDER
+    if selected == "mock":
+        _require_simulation("mock")
+        return MockPlacesProvider(failure=failure)
+    if (
+        selected != "google"
+        or settings.PLACES_PROVIDER != "google"
+        or not settings.GOOGLE_PLACES_ENABLED
+        or not settings.GOOGLE_PLACES_API_KEY
+        or failure
+    ):
+        raise ProviderConfigurationError
+    from integrations.google_places.provider import GooglePlacesProvider
+
+    return GooglePlacesProvider(api_key=settings.GOOGLE_PLACES_API_KEY)
 
 
 def outbound_provider(channel: str, *, failure: str = "") -> OutboundProvider:

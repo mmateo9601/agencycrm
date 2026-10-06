@@ -2,17 +2,33 @@
 
 
 class ProviderError(Exception):
-    public_message = "El proveedor simulado no pudo completar la operación."
+    public_message = "El proveedor no pudo completar la operación."
     retryable = False
 
 
 class ProviderTemporaryError(ProviderError):
-    public_message = "Fallo temporal del proveedor simulado."
+    public_message = "Fallo temporal del proveedor."
     retryable = True
 
 
 class ProviderPermanentError(ProviderError):
-    public_message = "Fallo permanente del proveedor simulado."
+    public_message = "Fallo permanente del proveedor."
+
+
+class ProviderAuthError(ProviderPermanentError):
+    public_message = "Credenciales o permisos del proveedor no válidos."
+
+
+class ProviderConfigurationError(ProviderPermanentError):
+    public_message = "Google Places está desactivado o no tiene credenciales configuradas."
+
+
+class ProviderBudgetError(ProviderPermanentError):
+    public_message = "Se ha agotado el presupuesto de peticiones de esta campaña."
+
+
+class ProviderTimeoutError(ProviderTemporaryError):
+    public_message = "El proveedor ha superado el tiempo de espera."
 
 
 class ProviderRateLimitError(ProviderTemporaryError):
