@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .followup_views import FollowUpRulesView
 from .views import (
     EmailConnectionView,
     ExpireSuppressionView,
@@ -14,6 +15,8 @@ from .whatsapp_views import WhatsAppConnectionView, WhatsAppInboxView
 
 app_name = "outreach"
 urlpatterns = [
+    path("followups/", FollowUpRulesView.as_view(), name="followup_rules"),
+    path("followups/<uuid:pk>/", FollowUpRulesView.as_view(), name="followup_rule"),
     path("whatsapp/", WhatsAppConnectionView.as_view(), name="whatsapp_connection"),
     path("whatsapp/inbox/", WhatsAppInboxView.as_view(), name="whatsapp_inbox"),
     path("email/", EmailConnectionView.as_view(), name="email_connection"),

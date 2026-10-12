@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import redirect, render
+from django.utils import timezone
 
 from apps.compliance.forms import SuppressionForm
 from apps.compliance.models import SuppressionEntry
@@ -18,6 +19,8 @@ from integrations.email.smtp import configuration_ready
 from .email_recovery import recover_email
 from .email_selectors import connection_for_user, connection_ready, expected_message_id
 from .email_services import configure_connection, set_live_mode
+from .followup_forms import FollowUpTaskForm
+from .followups import act_on_task
 from .forms import (
     ApproveForm,
     EmailConnectionForm,
@@ -26,8 +29,7 @@ from .forms import (
     RecoveryForm,
     SettingsForm,
 )
-from .models import SalesTask
-from .selectors import message_for_user, messages_for_user
+from .selectors import message_for_user, messages_for_user, tasks_for_user
 from .services import (
     approve_message,
     complete_task,
@@ -235,18 +237,46 @@ class SettingsView(JobsView):
 
 class TasksView(JobsView):
     def get(self, request, **kwargs):
-        records = scoped_records(
-            model=SalesTask, user=request.user, workspace_id=self.workspace.pk
-        ).order_by("due_at", "id")
+        records = tasks_for_user(
+            user=request.user,
+            workspace_id=self.workspace.pk,
+            status=request.GET.get("status", ""),
+            mine=request.GET.get("mine") == "1",
+        )
         return render(
             request,
             "outreach/tasks.html",
             self.context(
-                page_obj=Paginator(records, 25).get_page(request.GET.get("page")), jobs_active=False
+                page_obj=Paginator(records, 25).get_page(request.GET.get("page")),
+                jobs_active=False,
+                now=timezone.now(),
+                due_count=records.filter(status="PENDING", due_at__lte=timezone.now()).count(),
             ),
         )
 
     def post(self, request, **kwargs):
+        if request.POST.get("action"):
+            workspace_access(user=request.user, workspace_id=self.workspace.pk, write=True)
+            form = FollowUpTaskForm(request.POST)
+            if form.is_valid():
+                data = dict(form.cleaned_data)
+                try:
+                    act_on_task(
+                        user=request.user,
+                        workspace_id=self.workspace.pk,
+                        pk=data.pop("task_id"),
+                        **data,
+                    )
+                except ValidationError as error:
+                    add_service_errors(form, error)
+                else:
+                    return redirect("outreach:tasks", workspace_id=self.workspace.pk)
+            return render(
+                request,
+                "outreach/error.html",
+                self.context(error=form.errors.as_text()),
+                status=400,
+            )
         try:
             from uuid import UUID
 

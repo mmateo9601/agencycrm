@@ -59,6 +59,7 @@ def save_channel(
         data=data,
         fields=CHANNEL_FIELDS,
         pk=pk,
+        after_save=lambda channel: reconcile_followups(workspace_id, user),
     )
 
 
@@ -85,7 +86,14 @@ def change_campaign_status(*, user: User, workspace_id: UUID, pk: UUID, target: 
         action="CAMPAIGN_STATUS_CHANGED",
         metadata={"from": previous, "to": target},
     )
+    reconcile_followups(workspace_id, user)
     return campaign
+
+
+def reconcile_followups(workspace_id, user):
+    from apps.outreach.followups import reconcile
+
+    reconcile(workspace_id=workspace_id, actor=user)
 
 
 def archive_campaign(*, user: User, workspace_id: UUID, pk: UUID) -> None:

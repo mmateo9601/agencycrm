@@ -7,7 +7,8 @@
 <nav class="nav nav-pills gap-1 mb-4" aria-label="Navegación del espacio">
   <a class="nav-link" href="{% url 'outreach:outbox' workspace.id %}">Outbox</a>
   <a class="nav-link" href="{% url 'outreach:suppression' workspace.id %}">Supresión</a>
-  <a class="nav-link" href="{% url 'outreach:tasks' workspace.id %}">Tareas manuales</a>
+  <a class="nav-link" href="{% url 'outreach:tasks' workspace.id %}">Tareas y recordatorios</a>
+  <a class="nav-link" href="{% url 'outreach:followup_rules' workspace.id %}">Seguimientos</a>
   <a class="nav-link" href="{% url 'outreach:email_connection' workspace.id %}">Conexión de email</a>
   <a class="nav-link" href="{% url 'outreach:whatsapp_connection' workspace.id %}">WhatsApp Business</a>
   <a class="nav-link" href="{% url 'proposals:list' workspace.id %}">Propuestas</a>

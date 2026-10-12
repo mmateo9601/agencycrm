@@ -406,6 +406,9 @@ def finish_message(message, user, receipt: str, *, simulated: bool) -> None:
     event(message, "SENT", receipt, {"simulated": simulated})
     finish_domain(message, user, simulated=simulated, contacted_at=now)
     record_event(actor=user, obj=message, action="MESSAGE_SENT", metadata={"simulated": simulated})
+    from .followups import contact_confirmed
+
+    contact_confirmed(message)
 
 
 def finish_domain(
@@ -457,6 +460,9 @@ def record_smtp_receipt(message: OutreachMessage, user: User, receipt: str) -> N
     )
     record_event(actor=user, obj=message, action="MESSAGE_SENT", metadata={"simulated": False})
     message.refresh_from_db()
+    from .followups import contact_confirmed
+
+    contact_confirmed(message)
 
 
 def send_outreach(context: ExecutionContext) -> dict:
@@ -512,6 +518,9 @@ def send_outreach(context: ExecutionContext) -> dict:
             )
             event(message, "MANUAL_TASK_CREATED", str(task.pk))
             record_event(actor=job.created_by, obj=task, action="MANUAL_TASK_CREATED")
+            from .followups import refresh_next_action
+
+            refresh_next_action(task.lead_id, context.workspace_id)
             return {"task_id": str(task.pk), "manual": True}
         if not reserved:
             reserve_attempt(message, job.created_by)
@@ -647,6 +656,17 @@ def send_outreach(context: ExecutionContext) -> dict:
 def complete_task(*, user: User, workspace_id: UUID, pk: UUID, outcome: str) -> SalesTask:
     workspace = workspace_access(user=user, workspace_id=workspace_id, write=True)
     task = scoped_record(model=SalesTask, user=user, workspace_id=workspace_id, pk=pk)
+    if task.followup_rule_id:
+        from .followups import act_on_task
+
+        return act_on_task(
+            user=user,
+            workspace_id=workspace_id,
+            pk=pk,
+            action="complete",
+            expected_revision=task.revision,
+            outcome=outcome,
+        )
     if task.status != "PENDING":
         return task
     if not outcome.strip() or len(outcome) > 2000:
@@ -666,6 +686,9 @@ def complete_task(*, user: User, workspace_id: UUID, pk: UUID, outcome: str) -> 
         )
         record_event(actor=user, obj=task, action="MANUAL_TASK_COMPLETED")
     task.refresh_from_db()
+    from .followups import refresh_next_action
+
+    refresh_next_action(task.lead_id, workspace_id)
     return task
 
 
@@ -688,6 +711,9 @@ def configure(
     config.revision += 1
     config.save()
     record_event(actor=user, obj=config, action="OUTREACH_LIMITS_UPDATED")
+    from .followups import reconcile
+
+    reconcile(workspace_id=workspace_id, actor=user)
     return config
 
 
@@ -704,6 +730,9 @@ def pause(*, user: User, workspace_id: UUID, paused: bool) -> None:
         record_event(
             actor=user, obj=config, action="OUTREACH_PAUSED" if paused else "OUTREACH_RESUMED"
         )
+        from .followups import reconcile
+
+        reconcile(workspace_id=workspace_id, actor=user)
 
 
 class OutboundService:

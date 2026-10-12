@@ -50,6 +50,7 @@ class Lead(WorkspaceModel):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
     )
     next_action_at = models.DateTimeField(null=True, blank=True)
+    next_action_managed = models.BooleanField(default=False, editable=False)
     last_contact_at = models.DateTimeField(null=True, blank=True, editable=False)
     lost_reason = models.TextField(blank=True, editable=False)
     notes = models.TextField(blank=True)

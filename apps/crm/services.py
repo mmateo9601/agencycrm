@@ -18,8 +18,19 @@ from .schema import LEAD_FIELDS, OPPORTUNITY_FIELDS
 @transaction.atomic
 def save_lead(*, user: User, workspace_id: UUID, data: dict, pk: UUID | None = None) -> Lead:
     """Create one lead per campaign/company, or edit its non-state fields."""
+    previous = (
+        scoped_record(model=Lead, user=user, workspace_id=workspace_id, pk=pk) if pk else None
+    )
 
     def initialize(lead: Lead) -> None:
+        if (
+            previous
+            and "next_action_at" in data
+            and data["next_action_at"] != previous.next_action_at
+        ):
+            Lead.objects.filter(pk=lead.pk, workspace_id=workspace_id).update(
+                next_action_managed=False
+            )
         if not pk:
             if not lead.company.is_active or lead.campaign.status == "ARCHIVED":
                 raise ValidationError("No se pueden crear leads en empresas o campañas archivadas.")
@@ -119,6 +130,9 @@ class LeadStateService:
             metadata={"from": previous, "to": target, "revision": revision},
         )
         lead.refresh_from_db()
+        from apps.outreach.followups import reconcile
+
+        reconcile(workspace_id=workspace_id, company_id=lead.company_id, actor=user)
         return lead
 
 
@@ -131,3 +145,6 @@ def archive_lead(*, user: User, workspace_id: UUID, pk: UUID) -> None:
         lead.is_archived = True
         lead.save(update_fields=["is_archived", "updated_at"])
         record_event(actor=user, obj=lead, action="LEAD_ARCHIVED")
+        from apps.outreach.followups import reconcile
+
+        reconcile(workspace_id=workspace_id, company_id=lead.company_id, actor=user)

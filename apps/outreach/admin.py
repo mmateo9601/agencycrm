@@ -4,6 +4,7 @@ from common.admin import DomainReadOnlyAdmin
 
 from .models import (
     EmailConnection,
+    FollowUpRule,
     InboundWhatsAppMessage,
     MessageAttachment,
     MessageEvent,
@@ -15,6 +16,7 @@ from .models import (
 )
 
 for model in (
+    FollowUpRule,
     WhatsAppConnection,
     WhatsAppTemplate,
     InboundWhatsAppMessage,

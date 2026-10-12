@@ -9,6 +9,7 @@ from apps.campaigns.models import CampaignChannel
 from common.models import AppendOnlyModel, WorkspaceModel, limited_metadata
 
 from .email_models import EmailConnection as EmailConnection
+from .followup_models import FollowUpRule as FollowUpRule
 from .whatsapp_models import InboundWhatsAppMessage as InboundWhatsAppMessage
 from .whatsapp_models import WhatsAppConnection as WhatsAppConnection
 from .whatsapp_models import WhatsAppTemplate as WhatsAppTemplate
@@ -296,8 +297,20 @@ class MessageEvent(AppendOnlyModel, WorkspaceModel):
 class SalesTask(WorkspaceModel):
     lead = models.ForeignKey("crm.Lead", on_delete=models.PROTECT, related_name="sales_tasks")
     message = models.OneToOneField(
-        OutreachMessage, on_delete=models.PROTECT, related_name="manual_task"
+        OutreachMessage, on_delete=models.PROTECT, related_name="manual_task", null=True, blank=True
     )
+    followup_rule = models.ForeignKey(FollowUpRule, on_delete=models.PROTECT, null=True, blank=True)
+    source_message = models.ForeignKey(
+        OutreachMessage,
+        on_delete=models.PROTECT,
+        related_name="followup_tasks",
+        null=True,
+        blank=True,
+    )
+    sequence = models.PositiveSmallIntegerField(default=0, editable=False)
+    schedule_snapshot = models.JSONField(default=dict, blank=True, validators=[limited_metadata])
+    cancellation_reason = models.CharField(max_length=100, blank=True, editable=False)
+    revision = models.PositiveIntegerField(default=0, editable=False)
     type = models.CharField(
         max_length=15,
         choices=[
@@ -306,6 +319,7 @@ class SalesTask(WorkspaceModel):
             ("LINKEDIN", "LinkedIn"),
             ("INSTAGRAM", "Instagram"),
             ("OTHER", "Otro"),
+            ("REVIEW", "Revisar próximo seguimiento"),
         ],
     )
     due_at = models.DateTimeField(default=timezone.now)
@@ -319,10 +333,43 @@ class SalesTask(WorkspaceModel):
     notes = models.TextField(blank=True, validators=[MaxLengthValidator(2000)])
     outcome = models.TextField(blank=True, validators=[MaxLengthValidator(2000)])
 
+    class Meta:
+        indexes = [models.Index(fields=["workspace", "status", "due_at"])]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["followup_rule", "source_message", "sequence"], name="unique_followup_step"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    followup_rule__isnull=True,
+                    source_message__isnull=True,
+                    sequence=0,
+                    message__isnull=False,
+                )
+                | models.Q(
+                    followup_rule__isnull=False,
+                    source_message__isnull=False,
+                    sequence__gte=1,
+                    sequence__lte=10,
+                    message__isnull=True,
+                    type="REVIEW",
+                ),
+                name="sales_task_origin",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status__in=["PENDING", "COMPLETED", "CANCELLED"]),
+                name="sales_task_status",
+            ),
+        ]
+
     def clean(self):
         super().clean()
         if self.message_id and self.message.lead_id != self.lead_id:
             raise ValidationError("La tarea pertenece a otro lead.")
+        if self.source_message_id and self.source_message.lead_id != self.lead_id:
+            raise ValidationError("El origen pertenece a otro lead.")
+        if timezone.is_naive(self.due_at):
+            raise ValidationError("La programación debe incluir zona horaria.")
         if (
             self.assigned_to_id
             and not Membership.objects.filter(

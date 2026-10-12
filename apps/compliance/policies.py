@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from apps.accounts.models import Membership
 from apps.crm.models import Lead
-from apps.outreach.models import MessageEvent
+from apps.outreach.models import InboundWhatsAppMessage, MessageEvent, OutreachMessage
 from apps.outreach.settings import current_settings
 
 from .models import SuppressionEntry
@@ -20,6 +20,7 @@ REASON_LABELS = {
     "WORKSPACE_INACTIVE": "Espacio de trabajo inactivo.",
     "CAMPAIGN_OR_COMPANY_INACTIVE": "Campaña no preparada/pausada o empresa archivada.",
     "LEAD_NOT_READY": "El lead debe estar preparado para contacto y sin respuesta o cierre.",
+    "COMPANY_RESPONSE_OR_CLOSED": "Existe respuesta, reunión o cierre para esta empresa.",
     "SUPPRESSED": "Empresa o contacto bloqueado por supresión o no contactar.",
     "NOT_BUSINESS_CONTACT": "El contacto no está identificado como empresarial.",
     "RECIPIENT_MISSING": "Faltan datos del canal; WhatsApp necesita su número explícito.",
@@ -141,6 +142,20 @@ def eligibility(message, *, now=None, reserved: bool = False) -> tuple[str, list
         reasons.append("CAMPAIGN_OR_COMPANY_INACTIVE")
     if lead.status not in {"READY", "CONTACTED"}:
         reasons.append("LEAD_NOT_READY")
+    if (
+        Lead.objects.filter(
+            workspace_id=message.workspace_id,
+            company_id=lead.company_id,
+            status__in=["REPLIED", "MEETING", "PROPOSAL", "WON", "LOST", "DISQUALIFIED"],
+        ).exists()
+        or OutreachMessage.objects.filter(
+            workspace_id=message.workspace_id, lead__company_id=lead.company_id, status="REPLIED"
+        ).exists()
+        or InboundWhatsAppMessage.objects.filter(
+            workspace_id=message.workspace_id, contact__company_id=lead.company_id
+        ).exists()
+    ):
+        reasons.append("COMPANY_RESPONSE_OR_CLOSED")
     if (
         lead.company.do_not_contact
         or (contact and contact.do_not_contact)

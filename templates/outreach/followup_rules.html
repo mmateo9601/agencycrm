@@ -1,0 +1,11 @@
+{% extends "workspace/base.html" %}{% block workspace_content %}
+<h2 class="h4">Reglas de seguimiento</h2>
+<p>Generan recordatorios internos tras un contacto confirmado. Cada contacto adicional requiere preparar y aprobar un nuevo mensaje. No envían mensajes automáticamente.</p>
+{% if can_delete %}<section class="card card-body mb-3"><h3 class="h5">{% if editing %}Editar regla{% else %}Nueva regla{% endif %}</h3>
+<form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary">Guardar regla</button></form></section>{% endif %}
+{% if can_write %}<section class="card card-body mb-3"><h3 class="h5">Programar un contacto anterior</h3>
+<form method="post">{% csrf_token %}<input type="hidden" name="action" value="schedule">{{ schedule_form.as_p }}<button class="btn btn-secondary">Programar revisiones</button></form></section>{% endif %}
+{% for rule in page_obj %}<section class="card card-body mb-2"><h3 class="h5">{{ rule.name }}</h3>
+<p>{{ rule.campaign|default:"Todas las campañas" }} · {% if rule.enabled %}Habilitada{% else %}Deshabilitada{% endif %} · Primera revisión: {{ rule.delay_days }} días · Intervalo: {{ rule.interval_days }} días · {{ rule.max_steps }} revisiones.</p>
+{% if can_delete %}<a href="{% url 'outreach:followup_rule' workspace.id rule.pk %}">Editar</a>{% endif %}</section>{% empty %}<p>Sin reglas. El seguimiento automático está deshabilitado.</p>{% endfor %}
+{% include "outreach/pagination.html" %}{% endblock %}

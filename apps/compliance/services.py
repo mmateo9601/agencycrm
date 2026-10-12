@@ -52,6 +52,9 @@ def add_suppression(
         obj = existing
     obj.save()
     record_event(actor=user, obj=obj, action="SUPPRESSION_ADDED")
+    from apps.outreach.followups import reconcile
+
+    reconcile(workspace_id=workspace_id, actor=user)
     return obj
 
 

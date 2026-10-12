@@ -1,7 +1,7 @@
 [project]
 name = "agencycrm"
-version = "0.10.0"
-description = "AgencyCRM — WhatsApp Cloud, plantillas y webhooks firmados"
+version = "0.11.0"
+description = "AgencyCRM — seguimiento controlado y recordatorios internos"
 requires-python = ">=3.14,<3.15"
 
 [tool.pytest.ini_options]

@@ -1,12 +1,53 @@
-# AgencyCRM — FASE 10 · WhatsApp Business Cloud
+# AgencyCRM — FASE 11 · Seguimiento controlado
 
 Base local de AgencyCRM siguiendo `IMPLEMENTATION_PLAYBOOK_AGENCYCRM.md`.
-Implementadas FASE 0 a FASE 10: base Django, CRM, cola local, prospección mock,
+Implementadas FASE 0 a FASE 11: base Django, CRM, cola local, prospección mock,
 CSV, Google Places, enriquecimiento web, scoring, propuestas, contacto simulado
-y backends opcionales de email SMTP y WhatsApp Cloud API.
-Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 11.
+y backends opcionales de email SMTP y WhatsApp Cloud API, con reglas de seguimiento
+y recordatorios internos. Python **3.14**, Django 6.1.x y DRF 3.18.x.
+No se ha avanzado a FASE 12.
 WhatsApp está verificado con HTTP mocks; el ensayo real controlado queda pendiente
 de configuración y autorización del operador.
+
+## Uso de FASE 11
+
+En **Seguimientos**, OWNER/ADMIN configura reglas por campaña o para todo el
+workspace. Se crean deshabilitadas por defecto. Al habilitarlas, cada contacto
+confirmado posterior programa revisiones internas (máximo 10 reglas activas y
+10 revisiones por regla). También se puede programar un contacto anterior desde
+el formulario. Repetir la programación conserva las tareas existentes y su estado.
+Cada revisión conserva el origen, secuencia y configuración usada, con auditoría.
+
+**Tareas y recordatorios** permite filtrar por estado y responsable, completar
+una revisión con resultado, cancelarla o reprogramarla. Completar una revisión
+no registra un contacto ni envía mensajes. Un nuevo contacto requiere preparar
+otra propuesta/mensaje y su aprobación vigente mediante el flujo habitual.
+La próxima acción del lead usa la primera tarea pendiente, conservando una fecha
+manual si el operador la ha introducido.
+
+La programación y cada acción comprueban el cooldown del workspace y de los
+canales, contando los contactos de la empresa en todas sus campañas. Una respuesta,
+reunión, propuesta activa, WON/LOST, descarte, supresión, archivo, pausa o regla
+deshabilitada cancela los recordatorios aplicables. Una respuesta WhatsApp firmada
+de un contacto identificado también cancela revisiones sin contexto de respuesta.
+Un nuevo contacto confirmado sustituye el plan anterior. Reanudar una regla o
+expirar una supresión no resucita tareas canceladas. Las reglas editadas no cambian
+las fechas ya planificadas; las políticas actuales pueden ampliarlas o cancelarlas.
+
+Los servicios de aplicación reconcilian estos cambios explícitamente, sin signals.
+Para cambios directos de permisos/configuración y como revisión periódica del
+operador, ejecutar este comando con un actor activo autorizado del workspace:
+
+```powershell
+python manage.py reconcile_followups --workspace <uuid> --actor <user_uuid>
+```
+
+No hay cron, hilo de fondo ni envío automático añadido. Los recordatorios se crean
+dentro de la operación de contacto confirmado; el comando solo reconcilia los
+existentes. Las comprobaciones se repiten al actuar, aunque el comando no se haya
+ejecutado. Se añaden `crm/0003_lead_next_action_managed` y
+`outreach/0004_salestask_cancellation_reason_salestask_revision_and_more`.
+Las migraciones anteriores se conservan. No se añaden dependencias.
 
 ## Instalación (PowerShell)
 

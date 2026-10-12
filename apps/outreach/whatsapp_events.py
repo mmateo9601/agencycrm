@@ -138,6 +138,10 @@ def record_cloud_receipt(
         ):
             record_event(actor=None, obj=message, action="WHATSAPP_JOB_RECONCILED")
     message.refresh_from_db()
+    if accepted:
+        from .followups import contact_confirmed
+
+        contact_confirmed(message)
 
 
 def process_status(connection: WhatsAppConnection, value: dict) -> None:
@@ -200,6 +204,10 @@ def process_status(connection: WhatsAppConnection, value: dict) -> None:
         **changes
     )
     record_event(actor=None, obj=message, action="WHATSAPP_" + target)
+    if target == "FAILED":
+        from .followups import reconcile
+
+        reconcile(workspace_id=connection.workspace_id, company_id=message.lead.company_id)
 
 
 def process_inbound(connection: WhatsAppConnection, value: dict) -> None:
@@ -250,6 +258,14 @@ def process_inbound(connection: WhatsAppConnection, value: dict) -> None:
             status="REPLIED"
         )
         transition_verified_lead(reply, "REPLIED")
+    if inbound.contact_id:
+        from .followups import reconcile
+
+        reconcile(
+            workspace_id=connection.workspace_id,
+            company_id=inbound.contact.company_id,
+            force_reason="RESPONSE",
+        )
 
 
 @transaction.atomic

@@ -15,14 +15,26 @@ from .schema import COMPANY_FIELDS, CONTACT_FIELDS, EXTERNAL_REF_FIELDS, SOCIAL_
 def save_company(*, user: User, workspace_id: UUID, data: dict, pk: UUID | None = None) -> Company:
     """Create or edit a company without automatic merging by name."""
     return save_record(
-        model=Company, user=user, workspace_id=workspace_id, data=data, fields=COMPANY_FIELDS, pk=pk
+        model=Company,
+        user=user,
+        workspace_id=workspace_id,
+        data=data,
+        fields=COMPANY_FIELDS,
+        pk=pk,
+        after_save=lambda company: reconcile_followups(workspace_id, user),
     )
 
 
 def save_contact(*, user: User, workspace_id: UUID, data: dict, pk: UUID | None = None) -> Contact:
     """Persist a contact; normal phone numbers never imply WhatsApp availability."""
     return save_record(
-        model=Contact, user=user, workspace_id=workspace_id, data=data, fields=CONTACT_FIELDS, pk=pk
+        model=Contact,
+        user=user,
+        workspace_id=workspace_id,
+        data=data,
+        fields=CONTACT_FIELDS,
+        pk=pk,
+        after_save=lambda contact: reconcile_followups(workspace_id, user),
     )
 
 
@@ -63,3 +75,10 @@ def archive_company(*, user: User, workspace_id: UUID, pk: UUID) -> None:
         company.is_active = False
         company.save(update_fields=["is_active", "updated_at"])
         record_event(actor=user, obj=company, action="COMPANY_ARCHIVED")
+        reconcile_followups(workspace_id, user)
+
+
+def reconcile_followups(workspace_id, user):
+    from apps.outreach.followups import reconcile
+
+    reconcile(workspace_id=workspace_id, actor=user)
