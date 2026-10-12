@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.0 — 2026-10-12 · FASE 6
+
+- ScoringRule configurable y versionada por workspace, nueve reglas predeterminadas
+  y motor puro scoring-v1 con score acotado a 0–100 y evidencia por aportación.
+- ScoringRun y LeadScoreItem inmutables con snapshots, huella reproducible e historial;
+  nuevo cálculo sustituye el score activo sin borrar cálculos anteriores.
+- Detectores de reseñas, conversión observada y canal objetivo; evidencias, confianza
+  y recomendaciones limitadas a servicios activos de campaña. Conservadas oportunidades manuales.
+- SCORE_LEAD en el worker existente, idempotencia, auditoría y mutaciones atómicas.
+- UI de desglose/histórico y edición de reglas con control de versiones, permisos y CSRF.
+- Dos migraciones aditivas, pruebas sin red, rollback, recuperación y aislamiento.
+  Sin nuevas dependencias ni funcionalidades de FASE 7.
+
 ## 0.5.0 — 2026-10-12 · FASE 5
 
 - Transporte HTTP con IP pública fijada tras DNS acotado, TLS verificado,

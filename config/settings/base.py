@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.jobs",
     "apps.prospecting",
+    "apps.scoring",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

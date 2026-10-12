@@ -31,6 +31,10 @@ class JobService:
         """Persist only; duplicate keys return the existing job or reject conflicting intent."""
         workspace = workspace_access(user=user, workspace_id=workspace_id, write=True)
         payload = validate_payload(kind, payload)
+        if kind == Job.Kind.SCORE_LEAD:
+            from apps.scoring.services import eligible_lead
+
+            eligible_lead(user=user, workspace_id=workspace_id, pk=payload["lead_id"])
         if kind == Job.Kind.ENRICH_COMPANY:
             from apps.companies.enrichment import authorize_enrichment
 

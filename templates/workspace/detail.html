@@ -2,16 +2,22 @@
 {% block workspace_content %}
 <div class="d-flex justify-content-between align-items-start mb-3">
   <h2 class="h4">{{ object }}</h2><div class="d-flex gap-2">
-    {% if can_write %}<a class="btn btn-primary" href="{% url 'workspace:edit' workspace.id resource.key object.pk %}">Editar</a>{% endif %}
-    {% if can_delete %}<a class="btn btn-outline-danger" href="{% url 'workspace:delete' workspace.id resource.key object.pk %}">{{ resource.delete_label }}</a>{% endif %}
+    {% if can_write and not object.scoring_run_id %}<a class="btn btn-primary" href="{% url 'workspace:edit' workspace.id resource.key object.pk %}">Editar</a>{% endif %}
+    {% if can_delete and not object.scoring_run_id %}<a class="btn btn-outline-danger" href="{% url 'workspace:delete' workspace.id resource.key object.pk %}">{{ resource.delete_label }}</a>{% endif %}
   </div>
 </div>
 {% if state_error %}<p class="alert alert-danger">{{ state_error }}</p>{% endif %}
+{% if object.scoring_run_id %}<p>Oportunidad detectada por scoring; se conserva como evidencia histórica. <a href="{% url 'scoring:lead' workspace.id object.lead_id %}?run={{ object.scoring_run_id }}">Ver cálculo de origen</a></p>{% endif %}
 {% if resource.key == 'companies' %}<p><a class="btn btn-outline-primary" href="{% url 'enrichment:company' workspace.id object.pk %}">Enriquecimiento web</a></p>{% endif %}
 {% if can_write and campaign_target %}
 <form method="post" action="{% url 'workspace:state' workspace.id resource.key object.pk %}" class="mb-3">{% csrf_token %}<input type="hidden" name="target" value="{{ campaign_target }}"><button class="btn btn-outline-primary" type="submit">{% if campaign_target == 'READY' %}Marcar preparada{% else %}Volver a borrador{% endif %}</button></form>
 {% endif %}
-{% if resource.key == 'leads' %}<p class="text-secondary">El score se calculará cuando esté disponible la fase de scoring. Registrar un estado de contacto no envía mensajes.</p>{% endif %}
+{% if resource.key == 'leads' %}
+<section class="card card-body mb-3"><h3 class="h5">Score actual: {{ object.score }}/100</h3>
+<p><a href="{% url 'scoring:lead' workspace.id object.pk %}">Calcular / consultar histórico y desglose</a></p>
+<ul>{% for item in score_items %}<li>{{ item.explanation }}: {{ item.points }} · {{ item.evidence }}</li>{% empty %}<li>Sin cálculo registrado.</li>{% endfor %}</ul>
+<p class="text-secondary">La puntuación no autoriza contacto ni cambia el estado comercial.</p></section>
+{% endif %}
 <dl class="row card-body bg-white border rounded">{% for label, value in detail_fields %}<dt class="col-md-4">{{ label|capfirst }}</dt><dd class="col-md-8 text-break">{{ value|linebreaksbr }}</dd>{% endfor %}</dl>
 {% if can_write and transition_form %}
 <section class="card card-body mb-4"><h3 class="h5">Cambiar estado</h3>

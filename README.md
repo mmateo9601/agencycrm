@@ -1,9 +1,9 @@
-# AgencyCRM — FASE 5 · Enriquecimiento web
+# AgencyCRM — FASE 6 · Scoring y oportunidades
 
 Base local de AgencyCRM siguiendo `IMPLEMENTATION_PLAYBOOK_AGENCYCRM.md`.
-Implementadas FASE 0 a FASE 5: base Django, CRM, cola local, prospección mock,
-CSV, Google Places y enriquecimiento web con activación explícita.
-Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 6.
+Implementadas FASE 0 a FASE 6: base Django, CRM, cola local, prospección mock,
+CSV, Google Places, enriquecimiento web y scoring explicable.
+Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 7.
 
 ## Instalación (PowerShell)
 
@@ -62,7 +62,7 @@ están paginados (25 registros) y conservan filtros al cambiar de página.
 Leads permite filtrar por campaña, empresa, estado, responsable, sector, ciudad,
 score, email, teléfono, oportunidad activa y archivo. El historial se pagina
 de 20 en 20; las relaciones en fichas muestran los primeros 25 elementos.
-Los filtros de elegibilidad y breakdown de score se incorporarán con sus fases.
+El desglose de score está disponible en FASE 6; elegibilidad corresponde a su fase.
 
 **Archivar** conserva empresas, campañas y leads con sus relaciones e historial.
 No se crean nuevos leads en empresas/campañas archivadas ni se cambian estados
@@ -95,8 +95,8 @@ reprograma, incluso después de un reintento. Cambiar tipo, payload, prioridad o
 presupuesto con esa clave produce un error.
 
 Los tipos de trabajo del playbook están declarados. Se ejecutan el diagnóstico
-y `RUN_SEARCH_ITEM` y `ENRICH_COMPANY`; los demás handlers llegarán en sus fases. No hay
-scoring, propuestas ni outreach. Las comprobaciones de elegibilidad
+y `RUN_SEARCH_ITEM`, `ENRICH_COMPANY` y `SCORE_LEAD`; los demás handlers llegarán en sus fases.
+Propuestas y outreach llegarán en sus fases. Las comprobaciones de elegibilidad
 y consentimiento pertenecen a la futura fase de outreach; no existe un handler
 de envío que permita saltárselas.
 
@@ -302,7 +302,7 @@ página y de cada salto de redirección. Un 404 de robots permite continuar; otr
 errores impiden el rastreo. Se respeta Crawl-delay y Request-rate. Se visita la
 portada y enlaces internos de contacto, servicios, nosotros y reservas. Los enlaces
 sociales se registran sin visitarlos. Privacidad, reservas, tienda, formularios y
-analytics se registran como señales observadas; todavía no generan scores.
+analytics se registran como señales observadas; scoring usa las señales descritas en FASE 6.
 
 **Límites:** 8 páginas como máximo, 5 redirecciones por recurso, 54 peticiones
 incluyendo robots y redirects, 2 MB acumulados de cuerpos y 60 segundos totales
@@ -333,7 +333,7 @@ no cambia campañas ni impide procesar otras empresas.
 
 Se ha validado con fixtures y transportes simulados; **no se han visitado webs
 reales**. Quedan fuera renderizado JS, sitios con login/CAPTCHA, extracción de
-datos personales ajenos al contexto comercial y todo scoring de FASE 6.
+datos personales ajenos al contexto comercial.
 
 Migraciones nuevas:
 
@@ -341,6 +341,73 @@ Migraciones nuevas:
   y empresa, relaciones protegidas y unicidad por job/intento.
 - `companies/0003_websiteobservation_website_attempt_positive_and_more`: constraints
   de intento positivo, proveedor, límite de páginas y orden temporal.
+
+## Uso de FASE 6
+
+En la ficha de un lead, abrir **Calcular / consultar histórico y desglose** y
+**Encolar nuevo cálculo**. El POST con CSRF encola `SCORE_LEAD`; el worker único
+lo procesa sin red. La ficha muestra el score activo y sus aportaciones; la
+página de scoring permite abrir cada ejecución histórica y sus datos/reglas.
+
+```powershell
+python manage.py run_worker --kinds SCORE_LEAD
+```
+
+Cada ejecución guarda un `ScoringRun` UUID, inputs normalizados, reglas y versiones,
+huella SHA-256, suma original y puntuación limitada a **0–100**. La fórmula de
+`scoring-v1` es `max(0, min(100, suma_de_aportaciones))`; no reescala los pesos
+cuando se deshabilita una regla. Cada regla activa genera un `LeadScoreItem`,
+incluyendo cero puntos si no coincide o faltan datos. Motor, snapshots y desglose
+permiten reproducir un cálculo aunque cambien posteriormente empresa o reglas.
+
+Las nueve reglas predeterminadas se crean explícitamente al primer cálculo o
+mediante el botón de **Reglas de scoring**, sin signals ni sobrescrituras:
+
+| Regla | Puntos | Criterio |
+| --- | ---: | --- |
+| WEBSITE | 10 | Web registrada; no implica que se haya verificado su disponibilidad |
+| EMAIL | 12 | Email normalizado de contacto empresarial registrado |
+| PHONE | 8 | Teléfono E.164 de empresa/contacto empresarial |
+| SOCIAL | 5 | Perfil social registrado |
+| HIGH_OPPORTUNITY | 15 | Oportunidad manual HIGH activa |
+| MEDIUM_OPPORTUNITY | 8 | Oportunidad manual MEDIUM o detector coincidente |
+| LOW_REVIEWS | 10 | Número de reseñas conocido menor que el umbral configurado |
+| WEAK_CTA | 10 | Observación válida sin contacto, reserva ni formulario observado |
+| MISSING_CHANNEL | 7 | Canal habilitado en campaña sin datos empresariales registrados |
+
+OWNER/ADMIN editan nombre, puntos entre −100 y 100, activación, orden y configuración.
+Cada cambio incrementa la versión; una edición antigua se rechaza. El catálogo
+de códigos es cerrado. `LOW_REVIEWS` acepta `{"max_reviews": 20}` como criterio
+del workspace aplicado a sus campañas (rango 0–100000). `MISSING_CHANNEL` acepta
+`{"channel": "EMAIL"}`; también PHONE, LINKEDIN o INSTAGRAM. Las otras reglas usan
+`{}`. No se aceptan expresiones ni configuración arbitraria. Los roles con escritura
+pueden encolar cálculos; VIEWER consulta. Leer las páginas no crea reglas ni jobs.
+
+Detectores iniciales: pocas reseñas conocidas, conversión no observada y canal
+objetivo sin datos. Crean oportunidades MEDIUM con evidencia y confianza explícitas;
+pueden recomendar REPUTATION o WEB_DESIGN si ese servicio activo pertenece a la
+campaña. No tener web, datos desconocidos o un crawl fallido no se interpretan como
+una oportunidad HIGH. El detector web usa únicamente la última observación exitosa
+si también es la última observación de la empresa y coincide con su URL actual.
+Las conclusiones negativas se limitan a las páginas analizadas y requieren revisión.
+
+Score, histórico, oportunidades automáticas y auditoría se guardan en una sola
+transacción. Un nuevo cálculo sustituye el puntero activo del lead y desactiva las
+oportunidades automáticas anteriores, conservando sus evidencias. Las oportunidades
+manuales se mantienen. Las generadas no se editan ni eliminan desde CRUD; se reemplazan
+mediante scoring. Repetir la clave de idempotencia devuelve la ejecución original;
+recuperar un job ya calculado no duplica histórico ni reactiva un score antiguo.
+
+El cálculo usa reglas y datos vigentes al ejecutarse en el worker. No cambia estados
+comerciales, no usa `minimum_score` para cualificar automáticamente y no autoriza
+envíos. No incorpora propuestas ni funcionalidades de FASE 7. Sin dependencias nuevas.
+
+Migraciones:
+
+- `scoring/0001_initial`: ScoringRule, ScoringRun y LeadScoreItem, unicidad,
+  rangos e índice de histórico por workspace/lead.
+- `crm/0002_lead_current_score_run_opportunity_scoring_run`: puntero al score
+  activo y vínculo de oportunidades con su ejecución; preserva los datos existentes.
 
 ## Estructura y decisiones
 
@@ -409,7 +476,7 @@ al mismo estado no duplica historial. Estado, historial y auditoría se guardan
 en una sola transacción. Los estados finales no se reabren en esta fase.
 Las campañas solo pasan de DRAFT a READY, vuelven a DRAFT o se archivan;
 los planes tienen su propio estado de ejecución y no completan automáticamente
-la campaña comercial. No hay detección automática de oportunidades ni scoring todavía.
+la campaña comercial. Scoring prioriza la revisión y conserva estados comerciales.
 
 CSRF permanece activo en login, logout y admin. Los tests bloquean conexiones
 salientes y DNS. No hay envíos reales; Google solo puede realizar búsquedas tras

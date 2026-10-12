@@ -20,7 +20,7 @@ from apps.companies.services import (
 from apps.crm.forms import LeadForm, OpportunityForm
 from apps.crm.models import Lead, Opportunity
 from apps.crm.selectors import crm_records
-from apps.crm.services import archive_lead, save_lead, save_opportunity
+from apps.crm.services import archive_lead, delete_opportunity, save_lead, save_opportunity
 from common.services import delete_record
 
 
@@ -78,7 +78,7 @@ RESOURCES = {
             OpportunityForm,
             save_opportunity,
             crm_records,
-            partial(delete_record, model=Opportunity),
+            delete_opportunity,
         ),
         Resource(
             "sources",

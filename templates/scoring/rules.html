@@ -1,0 +1,7 @@
+{% extends "workspace/base.html" %}
+{% block workspace_content %}<h2 class="h4">Reglas de scoring</h2>
+<p>Las reglas deshabilitadas no aportan puntos ni generan oportunidades. Las modificaciones afectan a nuevos cálculos; el histórico conserva las versiones originales.</p>
+{% if can_delete %}<form method="post">{% csrf_token %}<button class="btn btn-outline-primary">Crear reglas predeterminadas ausentes</button></form>{% endif %}
+<table class="table"><thead><tr><th>Regla</th><th>Puntos</th><th>Activa</th><th>Versión</th><th></th></tr></thead><tbody>
+{% for rule in page_obj %}<tr><td>{{ rule.name }}</td><td>{{ rule.points }}</td><td>{{ rule.enabled|yesno:'Sí,No' }}</td><td>{{ rule.version }}</td><td>{% if can_delete %}<a href="{% url 'scoring:rule' workspace.id rule.pk %}">Editar</a>{% endif %}</td></tr>{% endfor %}</tbody></table>
+{% endblock %}

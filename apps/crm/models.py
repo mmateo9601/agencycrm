@@ -35,6 +35,14 @@ class Lead(WorkspaceModel):
         default=0, validators=[MaxValueValidator(100)], editable=False
     )
     score_version = models.CharField(max_length=50, blank=True, editable=False)
+    current_score_run = models.ForeignKey(
+        "scoring.ScoringRun",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="current_leads",
+    )
     recommended_service = models.ForeignKey(
         "accounts.ServiceOffering", on_delete=models.PROTECT, null=True, blank=True
     )
@@ -80,6 +88,8 @@ class Lead(WorkspaceModel):
 
     def clean(self):
         super().clean()
+        if self.current_score_run_id and self.current_score_run.lead_id != self.pk:
+            raise ValidationError("El score activo corresponde a otro lead.")
         if (
             self.recommended_service_id
             and self.recommended_service.workspace_id != self.workspace_id
@@ -126,6 +136,15 @@ class LeadStatusHistory(AppendOnlyModel):
 
 
 class Opportunity(WorkspaceModel):
+    scoring_run = models.ForeignKey(
+        "scoring.ScoringRun",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="opportunities",
+    )
+
     class Type(models.TextChoices):
         SEO_LOCAL = "SEO_LOCAL", "SEO local"
         SEO = "SEO", "SEO"
@@ -174,6 +193,8 @@ class Opportunity(WorkspaceModel):
 
     def clean(self):
         super().clean()
+        if self.scoring_run_id and self.scoring_run.lead_id != self.lead_id:
+            raise ValidationError("La oportunidad corresponde a otra ejecución/lead.")
         if (
             self.recommended_service_id
             and self.recommended_service.workspace_id != self.workspace_id

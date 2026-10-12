@@ -8,7 +8,7 @@ from apps.accounts.models import User
 from apps.audit.services import record_event
 from common.access import workspace_access
 from common.selectors import scoped_record
-from common.services import save_record
+from common.services import delete_record, save_record
 
 from .models import Lead, LeadStatusHistory, Opportunity
 from .policies import allowed_transitions
@@ -46,7 +46,11 @@ def save_lead(*, user: User, workspace_id: UUID, data: dict, pk: UUID | None = N
 def save_opportunity(
     *, user: User, workspace_id: UUID, data: dict, pk: UUID | None = None
 ) -> Opportunity:
-    """Store a manually observed opportunity; detection and scoring are future phases."""
+    """Edit manual opportunities only; generated evidence belongs to its scoring run."""
+    if pk:
+        opportunity = scoped_record(model=Opportunity, user=user, workspace_id=workspace_id, pk=pk)
+        if opportunity.scoring_run_id:
+            raise ValidationError("Las oportunidades detectadas se reemplazan mediante scoring.")
     return save_record(
         model=Opportunity,
         user=user,
@@ -55,6 +59,14 @@ def save_opportunity(
         fields=OPPORTUNITY_FIELDS,
         pk=pk,
     )
+
+
+def delete_opportunity(*, user: User, workspace_id: UUID, pk: UUID) -> None:
+    """Preserve generated evidence while allowing authorized manual deletions."""
+    opportunity = scoped_record(model=Opportunity, user=user, workspace_id=workspace_id, pk=pk)
+    if opportunity.scoring_run_id:
+        raise ValidationError("El histórico detectado por scoring debe conservarse.")
+    delete_record(model=Opportunity, user=user, workspace_id=workspace_id, pk=pk)
 
 
 class LeadStateService:

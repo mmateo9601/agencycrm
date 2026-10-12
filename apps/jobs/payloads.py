@@ -13,6 +13,13 @@ SCENARIOS = [
 
 def validate_payload(kind: str, payload: dict) -> dict:
     """Accept explicit schemas only; resource IDs are separately authorized on enqueue."""
+    if kind == Job.Kind.SCORE_LEAD:
+        if not isinstance(payload, dict) or set(payload) != {"lead_id"}:
+            raise ValidationError("El scoring requiere únicamente lead_id.")
+        try:
+            return {"lead_id": str(UUID(str(payload["lead_id"])))}
+        except (ValueError, TypeError) as exc:
+            raise ValidationError("Identificador de lead no válido.") from exc
     if kind == Job.Kind.ENRICH_COMPANY:
         from apps.companies.enrichment import validate_enrichment_payload
 

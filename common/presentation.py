@@ -20,6 +20,9 @@ def detail_context(*, obj: models.Model, params) -> dict:
     context = {"detail_fields": fields, "related_sections": []}
     if isinstance(obj, Lead):
         context.update(
+            score_items=obj.score_items.filter(
+                workspace_id=obj.workspace_id, scoring_run_id=obj.current_score_run_id
+            ),
             transition_form=LeadTransitionForm(lead=obj),
             history_page=Paginator(obj.status_history.select_related("actor"), 20).get_page(
                 params.get("history_page")

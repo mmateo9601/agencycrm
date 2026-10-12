@@ -1,0 +1,17 @@
+{% extends "workspace/base.html" %}
+{% block workspace_content %}
+<h2 class="h4">Scoring · {{ lead }}</h2>
+<p><a href="{% url 'workspace:detail' workspace.id 'leads' lead.pk %}">Volver al lead</a> · <a href="{% url 'scoring:rules' workspace.id %}">Reglas</a></p>
+<p>Score actual: {{ lead.score }}/100. La puntuación sirve para priorizar revisión comercial.</p>
+{% if can_write %}<form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary">Encolar nuevo cálculo</button></form>{% endif %}
+{% if selected %}<section class="card card-body my-3">
+<h3 class="h5">{{ selected.score }}/100 · {{ selected.engine_version }} · {{ selected.created_at }}</h3>
+<p>Suma antes de limitar a 0–100: {{ selected.raw_score }}. Huella: {{ selected.fingerprint }}</p>
+<table class="table"><thead><tr><th>Regla</th><th>Versión</th><th>Puntos</th><th>Evidencia</th></tr></thead><tbody>
+{% for item in selected.items.all %}<tr><td>{{ item.explanation }}</td><td>{{ item.rule_version }}</td><td>{{ item.points }}</td><td>{{ item.evidence }}</td></tr>{% endfor %}</tbody></table>
+<details><summary>Datos y reglas utilizados</summary><pre class="text-break">{{ selected.inputs }}</pre><pre class="text-break">{{ selected.rules }}</pre></details>
+<h4 class="h6">Oportunidades detectadas en este cálculo</h4><ul>{% for opportunity in selected.opportunities.all %}<li>{{ opportunity.title }} · {{ opportunity.evidence }}</li>{% empty %}<li>Ninguna.</li>{% endfor %}</ul>
+</section>{% endif %}
+<h3 class="h5 mt-4">Historial</h3><ul>{% for run in page_obj %}<li><a href="{% querystring run=run.pk %}">{{ run.created_at }} · {{ run.score }}/100</a></li>{% empty %}<li>Sin cálculos.</li>{% endfor %}</ul>
+<nav>{% if page_obj.has_previous %}<a href="{% querystring page=page_obj.previous_page_number %}">Anterior</a>{% endif %} Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} {% if page_obj.has_next %}<a href="{% querystring page=page_obj.next_page_number %}">Siguiente</a>{% endif %}</nav>
+{% endblock %}

@@ -1,7 +1,7 @@
 [project]
 name = "agencycrm"
-version = "0.5.0"
-description = "AgencyCRM — Enriquecimiento web seguro y acotado"
+version = "0.6.0"
+description = "AgencyCRM — Scoring reproducible y oportunidades explicables"
 requires-python = ">=3.14,<3.15"
 
 [tool.pytest.ini_options]

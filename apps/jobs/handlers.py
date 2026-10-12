@@ -64,7 +64,15 @@ def enrich_company(context: ExecutionContext) -> dict:
     return run_enrichment(context)
 
 
+def score_lead(context: ExecutionContext) -> dict:
+    """Dispatch deterministic scoring through its application service."""
+    from apps.scoring.services import run_score
+
+    return run_score(context)
+
+
 HANDLERS: dict[str, Callable[[ExecutionContext], dict]] = {
+    Job.Kind.SCORE_LEAD: score_lead,
     Job.Kind.ENRICH_COMPANY: enrich_company,
     Job.Kind.CHECK_MOCK_PROVIDERS: check_mock_providers,
     Job.Kind.RUN_SEARCH_ITEM: run_search_item,
