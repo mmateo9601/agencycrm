@@ -12,6 +12,22 @@ WRITE_ROLES = {
     Membership.Role.MEMBER,
 }
 DELETE_ROLES = {Membership.Role.OWNER, Membership.Role.ADMIN}
+CAPABILITY_ROLES = {
+    "audit": DELETE_ROLES,
+    "export": DELETE_ROLES,
+    "retention": DELETE_ROLES,
+    "configure": DELETE_ROLES,
+    "approve": DELETE_ROLES,
+}
+
+
+def require_capability(*, user: User, workspace_id: UUID, capability: str) -> Workspace:
+    """Authorize each sensitive operation from the current, active membership."""
+    workspace = workspace_access(user=user, workspace_id=workspace_id)
+    role = Membership.objects.get(user=user, workspace=workspace, is_active=True).role
+    if role not in CAPABILITY_ROLES.get(capability, set()):
+        raise PermissionDenied
+    return workspace
 
 
 def workspace_access(
@@ -28,4 +44,8 @@ def workspace_access(
 def workspace_permissions(*, user: User, workspace: Workspace) -> dict:
     """Presentation permissions; services independently recheck authorization."""
     role = Membership.objects.get(user=user, workspace=workspace, is_active=True).role
-    return {"can_write": role in WRITE_ROLES, "can_delete": role in DELETE_ROLES}
+    return {
+        "can_write": role in WRITE_ROLES,
+        "can_delete": role in DELETE_ROLES,
+        **{f"can_{name}": role in roles for name, roles in CAPABILITY_ROLES.items()},
+    }

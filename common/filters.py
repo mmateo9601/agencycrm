@@ -4,17 +4,18 @@ from apps.accounts.models import User
 from apps.campaigns.models import Campaign
 from apps.companies.models import Company
 from apps.crm.models import Lead
+from common.selectors import with_related
 
 
 class RecordFilterForm(forms.Form):
-    q = forms.CharField(label="Buscar", required=False)
+    q = forms.CharField(label="Buscar", max_length=200, required=False)
 
     def __init__(self, *args, model, workspace, **kwargs):
         super().__init__(*args, **kwargs)
         name = model._meta.model_name
         if name in {"company", "lead"}:
-            self.fields["city"] = forms.CharField(label="Ciudad", required=False)
-            self.fields["sector"] = forms.CharField(label="Sector", required=False)
+            self.fields["city"] = forms.CharField(label="Ciudad", max_length=200, required=False)
+            self.fields["sector"] = forms.CharField(label="Sector", max_length=200, required=False)
         if name in {"lead", "campaign"}:
             self.fields["status"] = forms.ChoiceField(
                 label="Estado", choices=[("", "Todos"), *model.Status.choices], required=False
@@ -26,7 +27,7 @@ class RecordFilterForm(forms.Form):
         ):
             if any(f.name == field for f in model._meta.fields):
                 self.fields[field] = forms.ModelChoiceField(
-                    queryset=related.objects.filter(workspace=workspace),
+                    queryset=with_related(related.objects.filter(workspace=workspace)),
                     label=label,
                     required=False,
                 )

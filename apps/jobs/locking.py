@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 from django.conf import settings
 
@@ -13,7 +14,12 @@ class WorkerAlreadyRunning(Exception):
 def worker_lock_path() -> Path:
     """Canonicalize the database path so all entry points share the same lock."""
     db = settings.DATABASES["default"]
-    if db["ENGINE"] == "django.db.backends.sqlite3" and db["NAME"] != ":memory:":
+    name = str(db["NAME"])
+    memory = name == ":memory:" or (
+        name.startswith("file:")
+        and (":memory:" in name or parse_qs(urlsplit(name).query).get("mode") == ["memory"])
+    )
+    if db["ENGINE"] == "django.db.backends.sqlite3" and not memory:
         return Path(f"{Path(db['NAME']).resolve()}.worker.lock")
     return Path(settings.BASE_DIR) / "agencycrm.worker.lock"
 

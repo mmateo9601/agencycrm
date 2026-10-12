@@ -13,6 +13,15 @@ SCENARIOS = [
 
 def validate_payload(kind: str, payload: dict) -> dict:
     """Accept explicit schemas only; resource IDs are separately authorized on enqueue."""
+    if kind == Job.Kind.RETENTION:
+        if (
+            not isinstance(payload, dict)
+            or set(payload) != {"inbound_days"}
+            or type(payload["inbound_days"]) is not int
+            or not 7 <= payload["inbound_days"] <= 3650
+        ):
+            raise ValidationError("Retención requiere inbound_days entre 7 y 3650.")
+        return dict(payload)
     if kind == Job.Kind.SEND_OUTREACH:
         if not isinstance(payload, dict) or set(payload) != {"message_id"}:
             raise ValidationError("El envío solo admite message_id.")

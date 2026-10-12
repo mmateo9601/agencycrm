@@ -142,7 +142,10 @@ class OutreachMessage(WorkspaceModel):
 
     class Meta:
         ordering = ["-created_at", "id"]
-        indexes = [models.Index(fields=["workspace", "channel", "sent_at"])]
+        indexes = [
+            models.Index(fields=["workspace", "channel", "sent_at"]),
+            models.Index(fields=["workspace", "lead", "status"]),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["workspace", "idempotency_key"], name="unique_message_key"
@@ -287,6 +290,7 @@ class MessageEvent(AppendOnlyModel, WorkspaceModel):
 
     class Meta:
         ordering = ["-occurred_at", "id"]
+        indexes = [models.Index(fields=["workspace", "event_type", "occurred_at"])]
         constraints = [
             models.UniqueConstraint(
                 fields=["message", "event_type", "provider_event_id"], name="unique_message_event"

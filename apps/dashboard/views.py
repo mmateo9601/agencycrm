@@ -1,4 +1,5 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.views.decorators.http import require_safe
 from django.views.generic import TemplateView
@@ -12,7 +13,10 @@ class HomeView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(
-            workspaces=workspaces_for_user(user=self.request.user), **kwargs
+            workspaces=Paginator(workspaces_for_user(user=self.request.user), 25).get_page(
+                self.request.GET.get("page")
+            ),
+            **kwargs,
         )
 
 

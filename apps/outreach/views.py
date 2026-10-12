@@ -102,7 +102,9 @@ class MessageView(JobsView):
                 decisions=Paginator(message.eligibility_decisions.all(), 10).get_page(
                     request.GET.get("page")
                 ),
-                events=message.events.all()[:25],
+                events=Paginator(
+                    message.events.filter(workspace_id=self.workspace.pk), 25
+                ).get_page(request.GET.get("events_page")),
                 recovery_form=RecoveryForm(),
                 smtp_identity=expected_message_id(message) if message.provider == "smtp" else "",
                 jobs_active=False,

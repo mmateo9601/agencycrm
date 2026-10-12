@@ -1,0 +1,3 @@
+{% extends "workspace/base.html" %}{% block workspace_content %}<h2 class="h4">Auditoría</h2>
+<form method="get">{{ filter_form.as_p }}<button class="btn btn-secondary">Filtrar</button></form>
+{% for event in page_obj %}<article class="card card-body my-2"><h3 class="h6">{{ event.created_at }} · {{ event.action }}</h3><p>{{ event.actor|default:"Sistema" }} · {{ event.object_type }} · {{ event.object_id }}</p><p>Correlación: {{ event.correlation_id }}</p><pre>{{ event.metadata }}</pre></article>{% empty %}<p>Sin eventos.</p>{% endfor %}{% include "outreach/pagination.html" %}{% endblock %}

@@ -85,7 +85,14 @@ def send_outreach(context: ExecutionContext) -> dict:
     return send(context)
 
 
+def retain_temporary_data(context: ExecutionContext) -> dict:
+    from apps.compliance.retention import run_retention
+
+    return run_retention(context)
+
+
 HANDLERS: dict[str, Callable[[ExecutionContext], dict]] = {
+    Job.Kind.RETENTION: retain_temporary_data,
     Job.Kind.SEND_OUTREACH: send_outreach,
     Job.Kind.GENERATE_PROPOSAL: generate_proposal,
     Job.Kind.SCORE_LEAD: score_lead,

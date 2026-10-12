@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 
 from apps.accounts.models import User
 from common.access import workspace_access
+from common.selectors import with_related
 
 
 class ScopedModelForm(forms.ModelForm):
@@ -21,7 +22,7 @@ class ScopedModelForm(forms.ModelForm):
                         memberships__is_active=True,
                     ).order_by("username")
                 else:
-                    field.queryset = field.queryset.filter(workspace=workspace)
+                    field.queryset = with_related(field.queryset.filter(workspace=workspace))
             css = (
                 "form-check-input"
                 if isinstance(field.widget, forms.CheckboxInput)

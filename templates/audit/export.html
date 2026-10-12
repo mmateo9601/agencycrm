@@ -1,0 +1,2 @@
+{% extends "workspace/base.html" %}{% block workspace_content %}<h2 class="h4">Exportar CSV</h2><p>Hasta 5000 registros del espacio actual. La descarga queda registrada en auditoría.</p>
+<form method="post">{% csrf_token %}{{ form.as_p }}<label>Buscar <input class="form-control" name="q" maxlength="200"></label><label>Ciudad <input class="form-control" name="city" maxlength="200"></label><button class="btn btn-primary">Descargar CSV</button></form>{% endblock %}

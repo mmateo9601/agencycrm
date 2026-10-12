@@ -3,8 +3,9 @@ import re
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxLengthValidator, RegexValidator
 from django.db import models
+from django.utils import timezone
 
-from common.models import AppendOnlyModel, WorkspaceModel
+from common.models import AppendOnlyModel, AppendOnlyQuerySet, WorkspaceModel
 
 
 class WhatsAppConnection(WorkspaceModel):
@@ -77,7 +78,23 @@ class WhatsAppTemplate(WorkspaceModel):
         return f"{self.name} · {self.language}"
 
 
+class InboundRetentionQuerySet(AppendOnlyQuerySet):
+    def _redact_text(self, *, workspace_id, ids, cutoff):
+        """Narrow content-only exception used by the audited retention service."""
+        records = self.filter(
+            workspace_id=workspace_id,
+            pk__in=ids,
+            received_at__lt=cutoff,
+            text_redacted_at__isnull=True,
+        )
+        return models.QuerySet.update(
+            records, body_text="", text_redacted_at=timezone.now(), updated_at=timezone.now()
+        )
+
+
 class InboundWhatsAppMessage(AppendOnlyModel, WorkspaceModel):
+    objects = InboundRetentionQuerySet.as_manager()
+    text_redacted_at = models.DateTimeField(null=True, blank=True, editable=False)
     connection = models.ForeignKey(WhatsAppConnection, on_delete=models.PROTECT)
     provider_message_id = models.CharField(max_length=400)
     sender_e164 = models.CharField(max_length=20)
@@ -97,6 +114,7 @@ class InboundWhatsAppMessage(AppendOnlyModel, WorkspaceModel):
 
     class Meta:
         ordering = ["-received_at", "id"]
+        indexes = [models.Index(fields=["workspace", "received_at"])]
         constraints = [
             models.UniqueConstraint(
                 fields=["workspace", "provider_message_id"], name="unique_inbound_whatsapp"

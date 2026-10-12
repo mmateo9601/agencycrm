@@ -61,6 +61,7 @@ class Lead(WorkspaceModel):
         indexes = [
             models.Index(fields=["workspace", "status"]),
             models.Index(fields=["workspace", "assigned_to"]),
+            models.Index(fields=["workspace", "company", "last_contact_at"]),
         ]
         constraints = [
             models.UniqueConstraint(

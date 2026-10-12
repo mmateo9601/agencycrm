@@ -20,10 +20,9 @@ class BoundedAssetUploadHandler(FileUploadHandler):
 
     def new_file(self, *args, **kwargs):
         super().new_file(*args, **kwargs)
-        if self.bounded:
-            self.files += 1
-            if self.files > 1:
-                raise StopUpload(connection_reset=True)
+        self.files += 1
+        if self.files > 1:
+            raise StopUpload(connection_reset=True)
 
     def receive_data_chunk(self, raw_data, start):
         self.total += len(raw_data)

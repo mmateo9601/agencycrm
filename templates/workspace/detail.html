@@ -17,6 +17,7 @@
 <p><a href="{% url 'scoring:lead' workspace.id object.pk %}">Calcular / consultar histórico y desglose</a></p>
 <p><a href="{% url 'proposals:list' workspace.id %}">Consultar / generar propuestas</a></p>
 <ul>{% for item in score_items %}<li>{{ item.explanation }}: {{ item.points }} · {{ item.evidence }}</li>{% empty %}<li>Sin cálculo registrado.</li>{% endfor %}</ul>
+<nav>{% if score_items.has_previous %}<a href="{% querystring score_page=score_items.previous_page_number %}">Anterior</a>{% endif %} Página {{ score_items.number }} de {{ score_items.paginator.num_pages }} {% if score_items.has_next %}<a href="{% querystring score_page=score_items.next_page_number %}">Siguiente</a>{% endif %}</nav>
 <p class="text-secondary">La puntuación no autoriza contacto ni cambia el estado comercial.</p></section>
 {% endif %}
 <dl class="row card-body bg-white border rounded">{% for label, value in detail_fields %}<dt class="col-md-4">{{ label|capfirst }}</dt><dd class="col-md-8 text-break">{{ value|linebreaksbr }}</dd>{% endfor %}</dl>
@@ -26,8 +27,8 @@
   {{ transition_form.as_p }}<button class="btn btn-primary" type="submit">Registrar cambio</button>
 </form>{% else %}<p>No hay transiciones disponibles para este lead.</p>{% endif %}</section>
 {% endif %}
-{% for label, records in related_sections %}<section class="card card-body mb-3"><h3 class="h5">{{ label }}</h3>
-<ul class="mb-0">{% for record in records %}<li>{{ record }}</li>{% empty %}<li>Sin registros.</li>{% endfor %}</ul><small class="text-secondary">Hasta 25 registros relacionados. Usa el listado correspondiente para consultar todos.</small></section>{% endfor %}
+{% for section in related_sections %}<section class="card card-body mb-3"><h3 class="h5">{{ section.label }}</h3>
+<ul class="mb-0">{% for record in section.page %}<li>{{ record }}</li>{% empty %}<li>Sin registros.</li>{% endfor %}</ul><nav>{% if section.previous_url %}<a href="{{ section.previous_url }}">Anterior</a>{% endif %} Página {{ section.page.number }} de {{ section.page.paginator.num_pages }} {% if section.next_url %}<a href="{{ section.next_url }}">Siguiente</a>{% endif %}</nav></section>{% endfor %}
 {% if history_page %}
 <section class="card card-body"><h3 class="h5">Historial de estados</h3>
 <table class="table"><thead><tr><th>Fecha</th><th>De → A</th><th>Motivo</th><th>Usuario</th></tr></thead><tbody>

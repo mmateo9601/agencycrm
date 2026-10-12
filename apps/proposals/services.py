@@ -294,6 +294,11 @@ def private_document(
     prefix = f"{'sales_assets' if asset else 'proposals'}/{workspace_id}/{pk}/"
     if not field.name.startswith(prefix) or ".." in field.name or "\\" in field.name:
         raise ValidationError("Archivo no disponible.")
+    from django.conf import settings
+
+    from common.private_files import private_file_path
+
+    private_file_path(settings.MEDIA_ROOT, field.name)
     try:
         with field.storage.open(field.name, "rb") as handle:
             data = handle.read(2_000_001)

@@ -17,4 +17,5 @@
 {% endif %}{% endif %}{% endif %}
 <h3 class="h5">Evaluaciones registradas</h3>{% for decision in decisions %}<p>{{ decision.evaluated_at }} · {{ decision.get_decision_display }}</p><ul>{% for reason in decision.reason_labels %}<li>{{ reason }}</li>{% endfor %}</ul>{% empty %}<p>Sin evaluaciones registradas.</p>{% endfor %}
 <nav>{% if decisions.has_previous %}<a href="{% querystring page=decisions.previous_page_number %}">Anterior</a>{% endif %} Página {{ decisions.number }} de {{ decisions.paginator.num_pages }} {% if decisions.has_next %}<a href="{% querystring page=decisions.next_page_number %}">Siguiente</a>{% endif %}</nav>
-<h3 class="h5">Eventos recientes</h3><ul>{% for item in events %}<li>{{ item.occurred_at }} · {{ item.event_type }}</li>{% endfor %}</ul>{% endblock %}
+<h3 class="h5">Eventos</h3><ul>{% for item in events %}<li>{{ item.occurred_at }} · {{ item.event_type }}</li>{% endfor %}</ul>
+<nav>{% if events.has_previous %}<a href="{% querystring events_page=events.previous_page_number %}">Anterior</a>{% endif %} Página {{ events.number }} de {{ events.paginator.num_pages }} {% if events.has_next %}<a href="{% querystring events_page=events.next_page_number %}">Siguiente</a>{% endif %}</nav>{% endblock %}

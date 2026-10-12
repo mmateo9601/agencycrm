@@ -34,9 +34,14 @@ class WhatsAppConnectionView(JobsView):
                 webhook_enabled=settings.WHATSAPP_WEBHOOK_ENABLED,
                 config=config,
                 callback_path=reverse("whatsapp_webhook", args=[self.workspace.pk]),
-                templates=scoped_records(
-                    model=WhatsAppTemplate, user=request.user, workspace_id=self.workspace.pk
-                ),
+                templates=Paginator(
+                    scoped_records(
+                        model=WhatsAppTemplate, user=request.user, workspace_id=self.workspace.pk
+                    )
+                    .select_related("connection")
+                    .order_by("name", "id"),
+                    25,
+                ).get_page(request.GET.get("templates_page")),
                 form=form
                 or WhatsAppConnectionForm(
                     initial={

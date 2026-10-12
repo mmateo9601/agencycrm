@@ -1,0 +1,2 @@
+{% extends "workspace/base.html" %}{% block workspace_content %}<h2 class="h4">Retención de datos temporales</h2><p>El worker elimina cachés Places caducadas y vacía el texto WhatsApp entrante anterior al periodo elegido. Conserva IDs, destinatarios, fechas, supresiones, propuestas y auditoría. Hasta 1000 registros de cada tipo por ejecución.</p>
+<form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-warning">Encolar limpieza confirmada</button></form>{% endblock %}

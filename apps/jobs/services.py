@@ -31,6 +31,10 @@ class JobService:
         """Persist only; duplicate keys return the existing job or reject conflicting intent."""
         workspace = workspace_access(user=user, workspace_id=workspace_id, write=True)
         payload = validate_payload(kind, payload)
+        if kind == Job.Kind.RETENTION:
+            from common.access import require_capability
+
+            require_capability(user=user, workspace_id=workspace_id, capability="retention")
         if kind == Job.Kind.SEND_OUTREACH:
             from apps.outreach.services import authorize_send
 

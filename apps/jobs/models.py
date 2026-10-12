@@ -20,6 +20,7 @@ class Job(TimestampedModel):
         PREPARE_OUTREACH = "PREPARE_OUTREACH", "Preparar contacto"
         SEND_OUTREACH = "SEND_OUTREACH", "Enviar contacto"
         REFRESH_METRICS = "REFRESH_METRICS", "Actualizar métricas"
+        RETENTION = "RETENTION", "Aplicar retención de datos temporales"
 
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pendiente"

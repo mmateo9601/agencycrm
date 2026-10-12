@@ -20,4 +20,8 @@ class AuditEvent(AppendOnlyModel):
 
     class Meta:
         ordering = ["-created_at", "id"]
-        indexes = [models.Index(fields=["workspace", "object_id"])]
+        indexes = [
+            models.Index(fields=["workspace", "object_id"]),
+            models.Index(fields=["workspace", "-created_at"]),
+            models.Index(fields=["workspace", "action", "-created_at"]),
+        ]

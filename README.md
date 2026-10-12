@@ -1,13 +1,52 @@
-# AgencyCRM — FASE 11 · Seguimiento controlado
+# AgencyCRM — FASE 12 · Hardening
 
 Base local de AgencyCRM siguiendo `IMPLEMENTATION_PLAYBOOK_AGENCYCRM.md`.
-Implementadas FASE 0 a FASE 11: base Django, CRM, cola local, prospección mock,
+Implementadas FASE 0 a FASE 12: base Django, CRM, cola local, prospección mock,
 CSV, Google Places, enriquecimiento web, scoring, propuestas, contacto simulado
 y backends opcionales de email SMTP y WhatsApp Cloud API, con reglas de seguimiento
 y recordatorios internos. Python **3.14**, Django 6.1.x y DRF 3.18.x.
-No se ha avanzado a FASE 12.
+Incluye CSP, permisos operativos, auditoría, CSV, retención y backup/restore local.
 WhatsApp está verificado con HTTP mocks; el ensayo real controlado queda pendiente
 de configuración y autorización del operador.
+
+## Uso de FASE 12
+
+OWNER/ADMIN dispone de **Auditoría**, **Exportar CSV** y **Retención** dentro de su
+workspace. Las acciones comprueban el permiso actual en servicios y también en el
+worker; no hay bypass por ser superusuario en la UI de workspaces. La auditoría
+se consulta con filtros y paginación, y los logins de aplicación quedan registrados.
+La exportación usa POST con CSRF, filtros del workspace, columnas explícitas y hasta
+5000 filas; neutraliza celdas que podrían interpretarse como fórmulas.
+
+La retención requiere confirmación y crea un Job del worker existente. Elimina hasta
+1000 cachés caducadas y vacía hasta 1000 textos entrantes anteriores al periodo elegido.
+Conserva los IDs, relaciones, fechas y la evidencia que impide nuevos contactos tras
+una respuesta. Es la única excepción de contenido al modelo entrante append-only,
+limitada al servicio de retención con auditoría en la misma transacción. No se purgan
+supresiones, propuestas, cuerpos de mensajes salientes ni eventos/auditoría.
+
+CSP usa el middleware nativo de Django, recursos locales y nonces para el admin,
+sin scripts inline libres. Las páginas autenticadas y los documentos usan no-store.
+Los PDFs privados rechazan symlinks/junctions y archivos con formato o hash inválidos.
+Las relaciones de fichas, eventos y plantillas tienen páginas independientes que
+conservan los filtros. Se añaden índices para auditoría, cooldown, eventos y retención.
+
+Para copias offline y restauración en una carpeta nueva, consultar
+[OPERATIONS.md](docs/OPERATIONS.md). El checklist y la matriz de roles están en
+[SECURITY.md](docs/SECURITY.md). No se añaden dependencias ni Docker.
+
+```powershell
+New-Item -ItemType Directory backups -Force
+python manage.py backup_database --output backups/agencycrm.zip
+python manage.py restore_database --input backups/agencycrm.zip --destination backups/restored
+python manage.py check --deploy --settings=config.settings.deployment
+```
+
+Detener servidor y worker antes de copiar/restaurar. La copia contiene todos los
+workspaces, la base y los PDFs referenciados; `.env` se conserva por separado.
+El perfil `deployment` es una plantilla HTTPS para futuro despliegue, no un servidor
+ya desplegado. Preload HSTS permanece desactivado por defecto y produce W021: se
+decide al preparar el dominio definitivo, sin silenciar checks.
 
 ## Uso de FASE 11
 
@@ -105,7 +144,7 @@ Las URLs de trabajo son `/w/<workspace_uuid>/<recurso>/`. Todos los listados
 están paginados (25 registros) y conservan filtros al cambiar de página.
 Leads permite filtrar por campaña, empresa, estado, responsable, sector, ciudad,
 score, email, teléfono, oportunidad activa y archivo. El historial se pagina
-de 20 en 20; las relaciones en fichas muestran los primeros 25 elementos.
+de 20 en 20; las relaciones en fichas tienen páginas independientes de 25 elementos.
 El desglose de score está disponible en FASE 6; elegibilidad corresponde a su fase.
 
 **Archivar** conserva empresas, campañas y leads con sus relaciones e historial.
@@ -837,11 +876,10 @@ nombres aleatorios y descarga autenticada quedan pendientes cuando se implemente
 esa funcionalidad. Esto evita introducir Pillow o una ruta de archivos pública
 solo para el bootstrap. `MEDIA_ROOT` ya está configurado y en tests es temporal.
 
-Los settings base usan cookies seguras y DEBUG desactivado. Antes de desplegar
-se requiere configuración de HTTPS, `SECURE_SSL_REDIRECT`, hosts y CSP; CSP y
-hardening de despliegue corresponden a FASE 12. `local.py` es solo para desarrollo.
-No usar `runserver` en producción. Ejecutar `check --deploy` con futuros settings
-de despliegue, no interpretar el settings local como preparado para producción.
+Los settings base usan cookies seguras, CSP y DEBUG desactivado. `local.py` es solo
+para desarrollo HTTP local. El perfil `deployment.py` exige HTTPS y activa HSTS;
+configurar hosts, TLS, ficheros estáticos y SMTP antes de usarlo. No usar `runserver`
+en producción. Ejecutar `check --deploy` con ese perfil y revisar el checklist.
 
 ## Dependencias justificadas
 

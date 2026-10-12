@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.12.0 — 2026-10-12 · FASE 12
+
+- Permisos de auditoría, exportación y retención por workspace y rol activo.
+- CSP nativa, nonces del admin y respuestas privadas sin caché.
+- Rechazo de symlinks/junctions para PDFs y límite de un archivo por subida.
+- Auditoría filtrable/paginada, logins explícitos y redacción de claves sensibles.
+- CSV con columnas explícitas, filtros, auditoría y neutralización de fórmulas.
+- Retención confirmada mediante Job: cachés caducadas y texto entrante antiguo.
+- Backup SQLite + PDFs, hashes, validación de ZIP y restore en destino nuevo.
+- Paginación de relaciones/eventos/plantillas y optimización de consultas e índices.
+- Bloqueo del worker compatible con las URLs SQLite en memoria usadas por tests.
+- Documentación operativa y checklist de seguridad; deployment HTTPS como plantilla.
+
+## 0.11.0 — 2026-10-12 · FASE 11
+
+- Reglas habilitables y recordatorios internos idempotentes por contacto confirmado.
+- Próxima acción derivada de tareas, conservando fechas manuales y cooldown.
+- Cancelación por respuesta/reunión/cierre/supresión y sustitución por nuevo contacto.
+- Acciones internas auditadas; revisiones nunca envían mensajes automáticamente.
+
 ## 0.10.0 — 2026-10-12 · FASE 10
 
 - WhatsAppCloudProvider con HTTP acotado, HTTPS fijo, token por entorno, versión
