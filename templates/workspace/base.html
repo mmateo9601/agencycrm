@@ -8,6 +8,7 @@
   <a class="nav-link" href="{% url 'outreach:outbox' workspace.id %}">Outbox</a>
   <a class="nav-link" href="{% url 'outreach:suppression' workspace.id %}">Supresión</a>
   <a class="nav-link" href="{% url 'outreach:tasks' workspace.id %}">Tareas manuales</a>
+  <a class="nav-link" href="{% url 'outreach:email_connection' workspace.id %}">Conexión de email</a>
   <a class="nav-link" href="{% url 'proposals:list' workspace.id %}">Propuestas</a>
   <a class="nav-link" href="{% url 'scoring:rules' workspace.id %}">Reglas de scoring</a>
   <a class="nav-link {% if prospecting_active %}active{% endif %}" href="{% url 'prospecting:list' workspace.id %}">Prospección</a>

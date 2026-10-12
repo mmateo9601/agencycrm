@@ -1,9 +1,10 @@
-# AgencyCRM — FASE 8 · Compliance y outreach mock
+# AgencyCRM — FASE 9 · Email SMTP
 
 Base local de AgencyCRM siguiendo `IMPLEMENTATION_PLAYBOOK_AGENCYCRM.md`.
-Implementadas FASE 0 a FASE 8: base Django, CRM, cola local, prospección mock,
-CSV, Google Places, enriquecimiento web, scoring, propuestas y contacto simulado.
-Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 9.
+Implementadas FASE 0 a FASE 9: base Django, CRM, cola local, prospección mock,
+CSV, Google Places, enriquecimiento web, scoring, propuestas, contacto simulado
+y backend opcional de email SMTP con TLS.
+Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 10.
 
 ## Instalación (PowerShell)
 
@@ -487,8 +488,8 @@ tamaño, estados válidos y requisito de aprobación para APPROVED/SENT.
 
 La instalación sigue en **simulation**. Email y WhatsApp utilizan exclusivamente
 MockEmailProvider/MockWhatsAppProvider: no SMTP, HTTP ni mensajes externos.
-Cambiar el modo, proveedor o el indicador reservado `live_mode_enabled` no habilita
-envíos reales. El futuro modo real requiere otra fase y doble activación explícita.
+El flujo de esta sección describe la simulación. El email real opcional de FASE 9
+requiere remitente autorizado y doble activación explícita, descrita más abajo.
 
 Flujo de trabajo:
 
@@ -522,7 +523,7 @@ política, fecha, actor y motivos. La preview GET es de solo lectura; un POST o 
 worker registra la evaluación. Se comprueban workspace, usuario/membership activos,
 empresa/campaña/lead, datos empresariales, destinatario vigente, propuesta y mensaje
 aprobados, aprobador activo OWNER/ADMIN, hash de contenido/adjuntos, confirmación
-de revisión, canal habilitado, fecha programada, pausa, límites y modo simulation.
+de revisión, canal habilitado, fecha programada, pausa, límites y modo del mensaje.
 Datos públicos no implican autorización comercial; la política/jurisdicción aplicable
 debe revisarla el operador. No se automatiza esa decisión ni se afirma cumplimiento jurídico.
 
@@ -551,9 +552,9 @@ dos veces al recuperar el mismo intento. Límites diarios cero deshabilitan ese 
 Las reservas, estados, decisiones y auditoría se guardan en transacciones cortas;
 la llamada mock y lectura de archivos quedan fuera. Un fallo temporal mock puede
 reintentarse dentro del presupuesto del job y del canal/empresa. Un fallo permanente
-queda FAILED. Esta recuperación depende de la idempotencia conocida del mock; antes
-de implementar un transporte real se deberá resolver aceptación incierta tras timeout,
-sin trasladar este replay a un proveedor real. Cancelar/fallar un job proyecta el estado
+queda FAILED. Esta recuperación depende de la idempotencia conocida del mock;
+SMTP usa reservas y reconciliación de aceptación incierta, sin replay ciego.
+Cancelar/fallar un job proyecta el estado
 en su mensaje con eventos; no quedan mensajes encolados por revocación de acceso.
 
 **Pausa de emergencia:** en **Outbox → Límites y pausa**, OWNER/ADMIN puede pausar o
@@ -585,7 +586,101 @@ Migraciones:
 La prueba E2E recorre mock Places → empresa/lead → enriquecimiento → scoring →
 propuesta → aprobación → mensaje → aprobación → envío mock, y verifica que una
 supresión posterior bloquea otro intento. Tests bloquean DNS/sockets; no hay
-credenciales, transportes reales ni nuevas dependencias de FASE 8.
+credenciales reales ni nuevas dependencias de FASE 8.
+
+## Uso de FASE 9 — email SMTP
+
+El backend real seleccionado es **SMTP autenticado con TLS**, usando `smtplib`,
+`ssl` y `email` de Python 3.14. La alternativa SMTP permite completar la fase sin
+OAuth Gmail, persistencia de tokens ni dependencias nuevas. Las credenciales se
+administran exclusivamente en el entorno; no se guardan en SQLite, jobs,
+auditoría, eventos ni formularios. No se ha modificado ni activado tu `.env`.
+
+Configuración de una cuenta SMTP administrada por el operador:
+
+```env
+OUTREACH_SMTP_HOST=smtp.example.invalid
+OUTREACH_SMTP_PORT=587
+OUTREACH_SMTP_USERNAME=
+OUTREACH_SMTP_PASSWORD=
+OUTREACH_SMTP_SENDER=agency@example.invalid
+OUTREACH_SMTP_SECURITY=starttls
+OUTREACH_SMTP_TIMEOUT=15
+```
+
+Los valores `.invalid` son ficticios; sustituirlos por la configuración del servidor
+elegido. `starttls` exige negociación TLS y certificado válido; `ssl` permite TLS
+implícito (normalmente puerto 465). No se admite SMTP en claro ni TLS sin verificación.
+El host es configuración del operador por entorno, nunca una URL introducida por
+usuarios. No se activa debug SMTP ni se incluyen respuestas crudas en errores/logs.
+Esta instalación tiene **una cuenta/remitente SMTP global**; cada workspace debe
+autorizar expresamente su uso. No se ofrecen cuentas independientes por workspace.
+
+1. Reiniciar Django y worker tras configurar el entorno. En **Conexión de email**,
+   OWNER/ADMIN autoriza el remitente del servidor y su nombre visible para el workspace.
+   La UI muestra configuración local completa/incompleta y autorización vigente;
+   **no prueba conexiones, credenciales ni disponibilidad del servidor**.
+2. En esa misma pantalla, permitir email real en el workspace. Separadamente,
+   el operador debe establecer `OUTREACH_MODE=live` y `EMAIL_PROVIDER=smtp` en el
+   entorno y reiniciar ambos procesos. Solo ambas activaciones permiten enviar.
+3. Preparar un mensaje EMAIL y marcar explícitamente **Preparar email real**.
+   Se congelan remitente, conexión/revisión y destinatario. OWNER/ADMIN revisa y
+   aprueba contenido, adjuntos y política. Los mocks antiguos nunca pasan a reales.
+4. Encolar **email real** y procesarlo con `run_worker --kinds SEND_OUTREACH`.
+   Las políticas de FASE 8 permanecen activas; se reevalúan tras validar archivos
+   e inmediatamente antes de reservar el transporte. La red queda fuera de las
+   transacciones. Falta de credenciales, cambio de remitente/conexión/credenciales,
+   revocación, supresión, pausa y límites bloquean el transporte.
+5. La aceptación SMTP conserva `provider_message_id`, eventos y auditoría, actualiza
+   contacto/CRM/propuesta y no se repite al recuperar un job. **SENT significa
+   aceptado por el servidor SMTP, no entregado al destinatario ni leído.**
+
+SMTP no devuelve un identificador de mensaje/thread portable del servidor: el campo
+`provider_message_id` conserva el **RFC Message-ID estable** generado por workspace
+y clave, también visible en la preview para comprobaciones. No es una garantía de
+deduplicación del proveedor. No se implementan threading remoto, seguimiento de
+respuestas, OAuth Gmail ni lectura de buzón. Son capacidades posteriores de otro
+adaptador; esta fase tampoco implementa WhatsApp real de FASE 10.
+
+La conexión conserva únicamente identidad, revisión, autorización y una huella HMAC
+de la configuración, ligada a `SECRET_KEY`; no conserva password/access/refresh tokens.
+Rotar credenciales, SECRET_KEY o configuración exige volver a autorizar conexión y
+preparar/aprobar nuevos mensajes. No copiar los secretos a referencias de comprobación.
+En simulation con EMAIL_PROVIDER=mock, aun con permiso live del workspace, solo se
+utiliza el mock. Con configuraciones incompatibles se bloquea; no hay fallback live.
+WhatsApp requiere simulation/mock; los canales manuales no utilizan transporte.
+
+**Fallos y reconciliación:** autenticación/TLS inválidos y rechazo permanente quedan
+FAILED sin reintentos automáticos. Fallos antes de DATA o rechazo SMTP explícito 4xx
+pueden reintentarse con backoff dentro de presupuestos/cooldown/cuotas. Un timeout,
+desconexión o error incierto durante la entrega quedan **UNKNOWN** y Job FAILED.
+La marca `transport_started_at` se guarda antes de contactar con el provider; si el
+worker cae o la persistencia del recibo falla, recuperación conserva esa incertidumbre.
+Ni reencolar el job ni reiniciar el worker vuelve a enviar ese mensaje automáticamente.
+
+Detener el worker y abrir la ficha del mensaje como OWNER/ADMIN. Comprobar por
+Message-ID los registros del servidor SMTP y aportar referencia + confirmación:
+
+- **Aceptación confirmada:** registra SENT/recibo sin enviar otra vez, incluso si
+  ahora hay pausa/supresión; conserva un hecho ya sucedido.
+- **Ausencia de aceptación confirmada:** permite reencolar el mismo job/mensaje
+  solo si supera la elegibilidad actual. Ausencia de información no basta.
+- **Fallo confirmado:** permite reintentar FAILED sin reserva incierta, sujeto a
+  controles actuales y máximo absoluto de diez ejecuciones del job.
+- **Actualizar CRM:** aplica transiciones pendientes de una aceptación ya registrada,
+  usando permisos del operador actual y sin transporte. Se utiliza si el remitente
+  perdió permisos durante el envío; el recibo y el cooldown ya quedaron conservados.
+
+Se auditan resultado y SHA-256 de la referencia, evitando almacenar texto libre que
+podría contener secretos. SMTP no permite garantizar entrega exactamente una vez ante
+caída entre aceptación y persistencia: se prioriza no duplicar y revisión explícita.
+La pausa bloquea nuevos envíos; no puede retirar un email ya aceptado durante la llamada.
+
+Migración `outreach/0002_emailconnection_and_more`: conexión UUID por workspace,
+remitente/revisión congelados, reserva de transporte, UNKNOWN y constraints de
+identidad SMTP/proveedor/aprobación; conserva los mensajes y aprobaciones mock previos.
+Las pruebas sustituyen **SMTP/SMTP_SSL**, no HTTP (este backend no usa HTTP), y bloquean
+globalmente DNS/sockets. No se ha realizado ningún login ni envío SMTP externo.
 
 ## Estructura y decisiones
 
@@ -657,8 +752,8 @@ los planes tienen su propio estado de ejecución y no completan automáticamente
 la campaña comercial. Scoring prioriza la revisión y conserva estados comerciales.
 
 CSRF permanece activo en login, logout y admin. Los tests bloquean conexiones
-salientes y DNS. No hay envíos reales; Google solo puede realizar búsquedas tras
-activación explícita. La factoría de mensajes rechaza cualquier provider real.
+salientes y DNS. Google y SMTP solo operan tras activación explícita; email requiere
+además permiso de workspace, conexión autorizada y aprobación humana.
 
 El campo `AgencyProfile.logo` está reservado, no editable todavía. No se habilitan
 uploads ni se publican URLs de media sin autorización; validación de imágenes,

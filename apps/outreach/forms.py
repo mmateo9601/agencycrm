@@ -14,7 +14,7 @@ class PrepareForm(forms.Form):
     contact = forms.ModelChoiceField(queryset=Contact.objects.none(), required=False)
     channel = forms.ChoiceField(
         choices=[
-            ("EMAIL", "Email simulado"),
+            ("EMAIL", "Email"),
             ("WHATSAPP", "WhatsApp simulado"),
             ("PHONE", "Llamada manual"),
             ("CONTACT_FORM", "Formulario manual"),
@@ -26,6 +26,10 @@ class PrepareForm(forms.Form):
     subject = forms.CharField(max_length=250, required=False)
     body_text = forms.CharField(max_length=12000, required=False, widget=forms.Textarea)
     idempotency_key = forms.UUIDField(initial=uuid.uuid4, widget=forms.HiddenInput)
+    real_email = forms.BooleanField(
+        required=False,
+        label="Preparar email real con el remitente autorizado; requiere doble activación",
+    )
 
     def __init__(self, *args, user, workspace_id, **kwargs):
         super().__init__(*args, **kwargs)
@@ -57,3 +61,31 @@ class SettingsForm(forms.ModelForm):
             "default_cooldown_days",
             "max_attempts_per_company",
         ]
+
+
+class EmailConnectionForm(forms.Form):
+    sender_name = forms.CharField(max_length=150, required=False, label="Nombre del remitente")
+    enabled = forms.BooleanField(
+        required=False, label="Autorizar la conexión SMTP para este workspace"
+    )
+    expected_revision = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
+
+
+class LiveModeForm(forms.Form):
+    enabled = forms.BooleanField(required=False, label="Permitir email real en este workspace")
+    expected_revision = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
+
+
+class RecoveryForm(forms.Form):
+    outcome = forms.ChoiceField(
+        choices=[
+            ("sync", "Actualizar CRM de una aceptación ya registrada"),
+            ("retry", "Reintentar fallo confirmado"),
+            ("accepted", "Servidor confirma aceptación"),
+            ("not_accepted", "Servidor confirma ausencia de aceptación"),
+        ]
+    )
+    evidence = forms.CharField(
+        max_length=500, label="Referencia de la comprobación en el servidor", widget=forms.Textarea
+    )
+    confirmed = forms.BooleanField(label="He comprobado el resultado en el servidor SMTP")

@@ -1,0 +1,14 @@
+{% extends "workspace/base.html" %}{% block workspace_content %}
+<h2 class="h4">Conexión de email</h2>
+<p>Backend SMTP con TLS. Las credenciales se configuran en el entorno y nunca se muestran aquí.</p>
+<p>Configuración local: {% if configured %}completa{% else %}incompleta{% endif %}. Conexión del workspace: {% if ready %}autorizada y vigente{% else %}no disponible{% endif %}.</p>
+<p>Este estado comprueba la configuración local; no verifica la conexión ni el login en el servidor.</p>
+{% if connection %}<p>Remitente autorizado: {{ connection.sender_name }} &lt;{{ connection.sender_email }}&gt;</p>{% endif %}
+<p>Modo global real: {{ global_live|yesno:'activo,inactivo' }}. SMTP seleccionado: {{ smtp_selected|yesno:'sí,no' }}. Email real en workspace: {{ config.live_mode_enabled|yesno:'permitido,bloqueado' }}.</p>
+<p>Todos los mensajes necesitan aprobación humana. WhatsApp sigue disponible únicamente en simulación. La pausa de emergencia bloquea nuevos envíos.</p>
+{% if can_delete %}
+<form method="post" class="card card-body my-3">{% csrf_token %}<input type="hidden" name="action" value="connection">{{ form.as_p }}<button class="btn btn-primary">Guardar autorización del remitente</button></form>
+<form method="post" class="card card-body my-3">{% csrf_token %}<input type="hidden" name="action" value="live">{{ live_form.as_p }}<button class="btn btn-warning">Guardar permiso de email real</button></form>
+{% endif %}
+<p>Cambiar el remitente, su autorización o las credenciales exige preparar y aprobar nuevos mensajes.</p>
+{% endblock %}

@@ -1,5 +1,5 @@
 {% extends "workspace/base.html" %}{% block workspace_content %}<h2 class="h4">Límites y pausa</h2>
-<p>Modo simulación obligatorio. Email/WhatsApp utilizan mocks y los demás canales requieren acciones manuales. La aprobación humana permanece activa.</p>
-<p>Estado: {% if config.is_paused %}<strong>Todos los contactos pausados</strong>{% else %}Simulación y tareas habilitadas{% endif %}</p>
+<p>Email real requiere doble activación y remitente autorizado en <a href="{% url 'outreach:email_connection' workspace.id %}">Conexión de email</a>. WhatsApp solo dispone de mock. La aprobación humana permanece activa.</p>
+<p>Estado: {% if config.is_paused %}<strong>Todos los contactos pausados</strong>{% else %}Contacto habilitado según su modo y elegibilidad{% endif %}</p>
 {% if can_delete %}<form method="post" class="mb-3">{% csrf_token %}{% if config.is_paused %}<button name="action" value="resume" class="btn btn-outline-primary">Reanudar contactos</button>{% else %}<button name="action" value="pause" class="btn btn-danger">PAUSAR TODO EL CONTACTO</button>{% endif %}</form>
 <form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary">Guardar límites</button></form>{% else %}<p>Email diario: {{ config.daily_email_limit }} · WhatsApp diario: {{ config.daily_whatsapp_limit }} · Cooldown: {{ config.default_cooldown_days }} días · Intentos máximos: {{ config.max_attempts_per_company }}</p>{% endif %}{% endblock %}

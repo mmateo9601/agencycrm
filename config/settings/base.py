@@ -100,12 +100,20 @@ FILE_UPLOAD_HANDLERS = [
     "django.core.files.uploadhandler.TemporaryFileUploadHandler",
 ]
 MAILERS = {"default": {"BACKEND": "django.core.mail.backends.console.EmailBackend"}}
-# Outbound messaging remains simulation-only. Places has a separate explicit opt-in.
-OUTREACH_MODE = "simulation"
+# Real email requires both this environment opt-in and the workspace opt-in.
+OUTREACH_MODE = os.getenv("OUTREACH_MODE", "simulation").strip().lower()
 MAX_EMAILS_PER_DAY = int(os.getenv("MAX_EMAILS_PER_DAY", "25"))
 MAX_WHATSAPP_PER_DAY = int(os.getenv("MAX_WHATSAPP_PER_DAY", "10"))
 CONTACT_COOLDOWN_DAYS = int(os.getenv("CONTACT_COOLDOWN_DAYS", "14"))
-EMAIL_PROVIDER = WHATSAPP_PROVIDER = AI_PROVIDER = "mock"
+EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "mock").strip().lower()
+WHATSAPP_PROVIDER = AI_PROVIDER = "mock"
+OUTREACH_SMTP_HOST = os.getenv("OUTREACH_SMTP_HOST", "").strip()
+OUTREACH_SMTP_PORT = int(os.getenv("OUTREACH_SMTP_PORT", "587"))
+OUTREACH_SMTP_USERNAME = os.getenv("OUTREACH_SMTP_USERNAME", "").strip()
+OUTREACH_SMTP_PASSWORD = os.getenv("OUTREACH_SMTP_PASSWORD", "")
+OUTREACH_SMTP_SENDER = os.getenv("OUTREACH_SMTP_SENDER", "").strip()
+OUTREACH_SMTP_SECURITY = os.getenv("OUTREACH_SMTP_SECURITY", "starttls").strip().lower()
+OUTREACH_SMTP_TIMEOUT = float(os.getenv("OUTREACH_SMTP_TIMEOUT", "15"))
 PLACES_PROVIDER = os.getenv("PLACES_PROVIDER", "mock").strip().lower()
 GOOGLE_PLACES_ENABLED = os.getenv("GOOGLE_PLACES_ENABLED", "false").lower() == "true"
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "").strip()

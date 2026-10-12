@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.9.0 — 2026-10-12 · FASE 9
+
+- Backend real seleccionado: SMTP autenticado con STARTTLS/TLS y verificación de
+  certificado, timeout, texto plano y adjuntos MIME; sin nuevas dependencias.
+- Conexión y remitente autorizados por workspace; secretos solo en entorno,
+  fingerprint HMAC, aprobación ligada al remitente/revisión y doble activación live.
+- UI de conexión sin llamadas remotas ni secretos, selección explícita de email
+  real, conservación de Message-ID y errores SMTP normalizados.
+- Reserva de transporte persistente; aceptación incierta bloquea cualquier replay.
+  Reconciliación OWNER/ADMIN con worker parado y reintentos solo tras rechazo
+  confirmado. Aceptación persiste aunque cambien permisos/política durante el envío.
+- Migración aditiva de conexión/identidad/reserva y estado UNKNOWN. Pruebas SMTP
+  mockeadas con DNS/sockets bloqueados, sin envíos externos ni credenciales reales.
+- Sin OAuth Gmail, thread IDs externos ni funcionalidades de FASE 10.
+
 ## 0.8.0 — 2026-10-12 · FASE 8
 
 - Supresión normalizada por workspace y decisiones append-only de elegibilidad,

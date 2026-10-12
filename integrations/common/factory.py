@@ -32,9 +32,27 @@ def places_provider(*, failure: str = "", provider: str | None = None) -> Places
     return GooglePlacesProvider(api_key=settings.GOOGLE_PLACES_API_KEY)
 
 
-def outbound_provider(channel: str, *, failure: str = "") -> OutboundProvider:
-    """Select local mock implementations; there is no live fallback."""
+def outbound_provider(channel: str, *, failure: str = "", message=None) -> OutboundProvider:
+    """Simulation selects mocks; SMTP requires the authorized frozen workspace identity."""
     if channel == "EMAIL":
+        if settings.OUTREACH_MODE == "live":
+            from apps.outreach.email_selectors import message_connection_ready
+            from apps.outreach.settings import current_settings
+            from integrations.email.smtp import SMTPEmailProvider
+
+            from .errors import EmailConfigurationError
+
+            if (
+                settings.EMAIL_PROVIDER != "smtp"
+                or failure
+                or message is None
+                or message.provider != "smtp"
+                or message.channel != "EMAIL"
+                or not current_settings(message.workspace).live_mode_enabled
+                or not message_connection_ready(message)
+            ):
+                raise EmailConfigurationError
+            return SMTPEmailProvider()
         _require_simulation(settings.EMAIL_PROVIDER)
         return MockEmailProvider(failure=failure)
     if channel == "WHATSAPP":

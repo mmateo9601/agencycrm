@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    EmailConnectionView,
     ExpireSuppressionView,
     MessageView,
     OutboxView,
@@ -12,6 +13,7 @@ from .views import (
 
 app_name = "outreach"
 urlpatterns = [
+    path("email/", EmailConnectionView.as_view(), name="email_connection"),
     path("", OutboxView.as_view(), name="outbox"),
     path("prepare/", PrepareView.as_view(), name="prepare"),
     path("messages/<uuid:pk>/", MessageView.as_view(), name="message"),

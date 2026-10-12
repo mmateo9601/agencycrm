@@ -67,6 +67,8 @@ class SendMessageRequest:
     body_text: str
     subject: str = ""
     attachments: tuple[SendAttachment, ...] = ()
+    sender_email: str = ""
+    sender_name: str = ""
 
 
 @dataclass(frozen=True)

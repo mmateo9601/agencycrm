@@ -1,8 +1,9 @@
 from uuid import UUID
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import F
+from django.http import Http404
 from django.utils import timezone
 
 from apps.accounts.models import User
@@ -20,9 +21,14 @@ from apps.proposals.services import private_document, transition_proposal
 from common.access import workspace_access
 from common.selectors import scoped_record
 from integrations.common.contracts import SendAttachment, SendMessageRequest
-from integrations.common.errors import ProviderError, ProviderPermanentError
+from integrations.common.errors import (
+    ProviderDeliveryUnknownError,
+    ProviderError,
+    ProviderPermanentError,
+)
 from integrations.common.factory import outbound_provider
 
+from .email_selectors import connection_for_user, connection_ready
 from .models import MessageAttachment, MessageEvent, OutreachMessage, OutreachSettings, SalesTask
 from .selectors import message_for_user
 from .settings import ensure_settings
@@ -58,6 +64,7 @@ def prepare_message(
     subject: str = "",
     body_text: str = "",
     scheduled_at=None,
+    real_email: bool = False,
 ) -> OutreachMessage:
     """Prepare immutable text and protected attachment references; never approve automatically."""
     workspace = workspace_access(user=user, workspace_id=workspace_id, write=True)
@@ -86,7 +93,16 @@ def prepare_message(
             existing.body_text,
         ) != (proposal.pk, contact.pk if contact else None, channel, subject, body_text):
             raise ValidationError("La clave identifica otro mensaje.")
+        if (existing.provider == "smtp") != real_email:
+            raise ValidationError("La clave identifica otro modo de envío.")
         return existing
+    connection = None
+    if type(real_email) is not bool:
+        raise ValidationError("Modo de envío no válido.")
+    if real_email:
+        connection = connection_for_user(user=user, workspace_id=workspace_id)
+        if channel != "EMAIL" or not connection_ready(connection):
+            raise ValidationError("Autoriza primero una conexión SMTP válida para este workspace.")
     ensure_settings(workspace, user)
     message = OutreachMessage.objects.create(
         workspace=workspace,
@@ -98,7 +114,11 @@ def prepare_message(
         recipient=recipient_for(proposal.lead, contact, channel),
         subject=subject,
         body_text=body_text,
-        provider="mock" if channel in AUTOMATED else "manual",
+        provider="smtp" if real_email else "mock" if channel in AUTOMATED else "manual",
+        email_connection=connection,
+        connection_revision=connection.revision if connection else 0,
+        sender_email=connection.sender_email if connection else "",
+        sender_name=connection.sender_name if connection else "",
         created_by=user,
         status="PENDING_APPROVAL",
         scheduled_at=scheduled_at or timezone.now(),
@@ -227,6 +247,18 @@ def authorize_send(*, user: User, workspace_id: UUID, payload: dict) -> Outreach
     return message
 
 
+def delivery_unknown(message, user) -> None:
+    """A transport reservation survived without receipt; never infer non-delivery."""
+    OutreachMessage.objects.filter(pk=message.pk, workspace_id=message.workspace_id).update(
+        status="UNKNOWN",
+        error_code="DELIVERY_UNKNOWN",
+        error_message=ProviderDeliveryUnknownError.public_message,
+        failed_at=timezone.now(),
+    )
+    event(message, "DELIVERY_UNKNOWN", f"attempt:{message.send_attempts}")
+    record_event(actor=user, obj=message, action="MESSAGE_DELIVERY_UNKNOWN")
+
+
 def read_attachments(message, user) -> tuple[SendAttachment, ...]:
     items = list(message.attachments.filter(workspace_id=message.workspace_id).order_by("filename"))
     if len(items) > 6:
@@ -291,11 +323,20 @@ def finish_message(message, user, receipt: str, *, simulated: bool) -> None:
     )
     event(
         message,
-        "PROVIDER_ACCEPTED" if simulated else "MANUAL_COMPLETED",
+        "PROVIDER_ACCEPTED" if message.provider in {"mock", "smtp"} else "MANUAL_COMPLETED",
         receipt,
         {"simulated": simulated},
     )
     event(message, "SENT", receipt, {"simulated": simulated})
+    finish_domain(message, user, simulated=simulated, contacted_at=now)
+    record_event(actor=user, obj=message, action="MESSAGE_SENT", metadata={"simulated": simulated})
+
+
+def finish_domain(
+    message, user, *, simulated: bool, contacted_at=None, proposal_actor=None
+) -> None:
+    """Apply CRM transitions after a recorded contact without repeating the transport."""
+    now = contacted_at or timezone.now()
     lead = Lead.objects.get(pk=message.lead_id, workspace_id=message.workspace_id)
     if lead.status == "READY":
         LeadStateService.transition(
@@ -303,23 +344,63 @@ def finish_message(message, user, receipt: str, *, simulated: bool) -> None:
             workspace_id=message.workspace_id,
             pk=lead.pk,
             target="CONTACTED",
-            reason="Contacto simulado" if simulated else "Acción manual confirmada",
+            reason="Contacto simulado"
+            if simulated
+            else "Email aceptado por SMTP"
+            if message.provider == "smtp"
+            else "Acción manual confirmada",
             expected_revision=lead.status_revision,
         )
     Lead.objects.filter(pk=lead.pk, workspace_id=message.workspace_id).update(last_contact_at=now)
     proposal = Proposal.objects.get(pk=message.proposal_id, workspace_id=message.workspace_id)
     transition_proposal(
-        user=message.approved_by,
+        user=proposal_actor or message.approved_by,
         workspace_id=message.workspace_id,
         pk=proposal.pk,
         target="SENT",
         expected_revision=proposal.revision,
     )
-    record_event(actor=user, obj=message, action="MESSAGE_SENT", metadata={"simulated": simulated})
+
+
+def record_smtp_receipt(message: OutreachMessage, user: User, receipt: str) -> None:
+    """Persist acceptance independently of subsequent CRM permission or state changes."""
+    now = timezone.now()
+    OutreachMessage.objects.filter(pk=message.pk, workspace_id=message.workspace_id).update(
+        status="SENT",
+        provider_message_id=receipt,
+        sent_at=now,
+        failed_at=None,
+        error_code="",
+        error_message="",
+        updated_at=now,
+    )
+    event(message, "PROVIDER_ACCEPTED", receipt, {"simulated": False})
+    event(message, "SENT", receipt, {"simulated": False})
+    Lead.objects.filter(pk=message.lead_id, workspace_id=message.workspace_id).update(
+        last_contact_at=now
+    )
+    record_event(actor=user, obj=message, action="MESSAGE_SENT", metadata={"simulated": False})
+    message.refresh_from_db()
 
 
 def send_outreach(context: ExecutionContext) -> dict:
-    """Reserve limits atomically, invoke only local mocks outside transactions, then finalize."""
+    """Reserve limits before transport; live submission is fenced against ambiguous retries."""
+    with transaction.atomic():
+        previous_job = owned_job(context)
+        stranded = (
+            OutreachMessage.objects.filter(
+                workspace_id=context.workspace_id,
+                job=previous_job,
+                provider="smtp",
+                transport_started_at__isnull=False,
+            )
+            .exclude(status="SENT")
+            .first()
+        )
+        if stranded:
+            delivery_unknown(stranded, previous_job.created_by)
+    if stranded:
+        raise ProviderDeliveryUnknownError
     with transaction.atomic():
         job = owned_job(context)
         token = job.run_token
@@ -366,8 +447,24 @@ def send_outreach(context: ExecutionContext) -> dict:
             if decision.decision != "ELIGIBLE":
                 block_message(message, job.created_by, decision)
                 return {"message_id": str(message.pk), "blocked": True}
-        # The factory has no live implementation and rejects any non-mock configuration.
-        provider = outbound_provider(message.channel)
+        provider = (
+            outbound_provider(message.channel, message=message)
+            if message.provider == "smtp"
+            else outbound_provider(message.channel)
+        )
+        if message.provider == "smtp":
+            with transaction.atomic():
+                owned_job(context, token)
+                workspace_access(user=job.created_by, workspace_id=context.workspace_id, write=True)
+                message.refresh_from_db()
+                decision = evaluate_message(message, job.created_by, reserved=True)
+                if decision.decision != "ELIGIBLE":
+                    block_message(message, job.created_by, decision)
+                    return {"message_id": str(message.pk), "blocked": True}
+                OutreachMessage.objects.filter(
+                    pk=message.pk, workspace_id=context.workspace_id
+                ).update(transport_started_at=timezone.now())
+                message.refresh_from_db()
         result = provider.send(
             SendMessageRequest(
                 workspace_id=context.workspace_id,
@@ -376,24 +473,68 @@ def send_outreach(context: ExecutionContext) -> dict:
                 body_text=message.body_text,
                 subject=message.subject,
                 attachments=attachments,
+                sender_email=message.sender_email,
+                sender_name=message.sender_name,
             )
         )
-        if not result.simulated:
+        if result.simulated != (message.provider == "mock"):
+            if message.provider == "smtp":
+                raise ProviderDeliveryUnknownError
             raise ProviderPermanentError
     except Exception as error:
         with transaction.atomic():
             owned_job(context, token)
-            OutreachMessage.objects.filter(pk=message.pk, workspace_id=context.workspace_id).update(
-                status="FAILED",
-                failed_at=timezone.now(),
-                error_code=type(error).__name__[:100],
-                error_message=error.public_message
-                if isinstance(error, ProviderError)
-                else "Fallo durante la simulación.",
+            uncertain = (
+                message.provider == "smtp"
+                and message.transport_started_at
+                and (
+                    isinstance(error, ProviderDeliveryUnknownError)
+                    or not isinstance(error, ProviderError)
+                )
             )
+            if uncertain:
+                delivery_unknown(message, job.created_by)
+            else:
+                OutreachMessage.objects.filter(
+                    pk=message.pk, workspace_id=context.workspace_id
+                ).update(
+                    status="FAILED",
+                    transport_started_at=None,
+                    failed_at=timezone.now(),
+                    error_code=type(error).__name__[:100],
+                    error_message=error.public_message
+                    if isinstance(error, ProviderError)
+                    else "Fallo durante el envío.",
+                )
             event(message, "FAILED", f"attempt:{message.send_attempts}")
             record_event(actor=job.created_by, obj=message, action="MESSAGE_FAILED")
+        if uncertain:
+            raise ProviderDeliveryUnknownError from None
         raise
+    if message.provider == "smtp":
+        # Acceptance is a fact even if permissions or policy changed during the network call.
+        # Persist it first; recovery must never repeat an accepted submission.
+        with transaction.atomic():
+            owned_job(context, token)
+            message.refresh_from_db()
+            record_smtp_receipt(message, message.created_by, result.provider_message_id)
+        try:
+            with transaction.atomic():
+                message.refresh_from_db()
+                finish_domain(
+                    message, job.created_by, simulated=False, contacted_at=message.sent_at
+                )
+        except PermissionDenied, ValidationError, Http404:
+            record_event(
+                actor=message.created_by,
+                obj=message,
+                action="MESSAGE_STATE_RECONCILIATION_REQUIRED",
+            )
+        return {
+            "message_id": str(message.pk),
+            "receipt": result.provider_message_id,
+            "simulated": False,
+        }
     with transaction.atomic():
         owned_job(context, token)
         workspace_access(user=job.created_by, workspace_id=context.workspace_id, write=True)

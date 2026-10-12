@@ -14,7 +14,7 @@ from apps.outreach.settings import current_settings
 
 from .models import SuppressionEntry
 
-POLICY_VERSION = "outreach-v1"
+POLICY_VERSION = "outreach-v2"
 AUTOMATED = {"EMAIL", "WHATSAPP"}
 REASON_LABELS = {
     "WORKSPACE_INACTIVE": "Espacio de trabajo inactivo.",
@@ -30,7 +30,9 @@ REASON_LABELS = {
     "CONTENT_CHANGED": "El contenido o adjuntos no coinciden con lo aprobado.",
     "POLICY_REVIEW_REQUIRED": "Falta confirmación humana de la política aplicable.",
     "EMERGENCY_PAUSE": "Todos los contactos están pausados por el operador.",
-    "LIVE_PROVIDER_DISABLED": "Solo están disponibles simulación y proveedores mock.",
+    "LIVE_PROVIDER_DISABLED": "Modo/proveedor no habilitado o falta doble activación del email.",
+    "EMAIL_CONNECTION_INVALID": "Conexión SMTP desactivada, incompleta o distinta de la aprobada.",
+    "DELIVERY_UNCERTAIN": "Entrega pendiente de reconciliación; no se permite reenviar.",
     "CHANNEL_DISABLED": "El canal no está habilitado en la campaña.",
     "NOT_DUE": "Todavía no ha llegado la fecha programada.",
     "ATTEMPT_LIMIT": "Se alcanzó el máximo de intentos para esta empresa/canal.",
@@ -74,6 +76,15 @@ def approval_digest(message) -> str:
         "body": message.body_text,
         "files": list(message.attachments.order_by("filename").values_list("filename", "sha256")),
     }
+    # Preserve mock approvals; real approvals also bind the frozen sender and transport.
+    if message.provider == "smtp":
+        data.update(
+            provider=message.provider,
+            connection=str(message.email_connection_id),
+            connection_revision=message.connection_revision,
+            sender=message.sender_email,
+            sender_name=message.sender_name,
+        )
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
 
@@ -152,19 +163,29 @@ def eligibility(message, *, now=None, reserved: bool = False) -> tuple[str, list
         reasons.append("POLICY_REVIEW_REQUIRED")
     if config.is_paused:
         reasons.append("EMERGENCY_PAUSE")
-    if settings.OUTREACH_MODE != "simulation" or (
-        message.channel in AUTOMATED
-        and (
-            message.provider != "mock"
-            or (
-                settings.EMAIL_PROVIDER
-                if message.channel == "EMAIL"
-                else settings.WHATSAPP_PROVIDER
-            )
-            != "mock"
-        )
-    ):
+    real_email = message.channel == "EMAIL" and message.provider == "smtp"
+    live_allowed = (
+        real_email
+        and settings.OUTREACH_MODE == "live"
+        and settings.EMAIL_PROVIDER == "smtp"
+        and config.live_mode_enabled
+    )
+    simulation_allowed = settings.OUTREACH_MODE == "simulation" and (
+        message.channel not in AUTOMATED
+        or message.provider == "mock"
+        and (settings.EMAIL_PROVIDER if message.channel == "EMAIL" else settings.WHATSAPP_PROVIDER)
+        == "mock"
+    )
+    manual_allowed = message.channel not in AUTOMATED and settings.OUTREACH_MODE == "live"
+    if not (live_allowed or simulation_allowed or manual_allowed):
         reasons.append("LIVE_PROVIDER_DISABLED")
+    if real_email:
+        from apps.outreach.email_selectors import message_connection_ready
+
+        if not message_connection_ready(message):
+            reasons.append("EMAIL_CONNECTION_INVALID")
+    if message.status == "UNKNOWN":
+        reasons.append("DELIVERY_UNCERTAIN")
     channel = lead.campaign.channels.filter(
         workspace_id=message.workspace_id, channel=message.channel, enabled=True
     ).first()

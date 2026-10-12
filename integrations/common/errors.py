@@ -15,6 +15,17 @@ class ProviderPermanentError(ProviderError):
     public_message = "Fallo permanente del proveedor."
 
 
+class EmailConfigurationError(ProviderPermanentError):
+    public_message = "Email real desactivado o configuración SMTP segura incompleta."
+
+
+class ProviderDeliveryUnknownError(ProviderPermanentError):
+    public_message = (
+        "Aceptación SMTP incierta. Revisa el servidor antes de resolver; "
+        "no se reenvía automáticamente."
+    )
+
+
 class ProviderAuthError(ProviderPermanentError):
     public_message = "Credenciales o permisos del proveedor no válidos."
 

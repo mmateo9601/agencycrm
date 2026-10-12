@@ -8,6 +8,8 @@ from apps.accounts.models import Membership
 from apps.campaigns.models import CampaignChannel
 from common.models import AppendOnlyModel, WorkspaceModel, limited_metadata
 
+from .email_models import EmailConnection as EmailConnection
+
 
 class OutreachSettings(WorkspaceModel):
     workspace = models.OneToOneField(
@@ -59,13 +61,14 @@ class OutreachMessage(WorkspaceModel):
         APPROVED = "APPROVED", "Aprobado"
         QUEUED = "QUEUED", "Encolado"
         SENDING = "SENDING", "En proceso"
-        SENT = "SENT", "Enviado (simulado)"
+        SENT = "SENT", "Enviado / contacto registrado"
         DELIVERED = "DELIVERED", "Entregado"
         READ = "READ", "Leído"
         FAILED = "FAILED", "Fallido"
         REPLIED = "REPLIED", "Respuesta"
         CANCELLED = "CANCELLED", "Cancelado"
         SUPPRESSED = "SUPPRESSED", "Bloqueado por política"
+        UNKNOWN = "UNKNOWN", "Aceptación incierta; requiere revisión"
 
     lead = models.ForeignKey("crm.Lead", on_delete=models.PROTECT, related_name="outreach_messages")
     contact = models.ForeignKey(
@@ -85,6 +88,13 @@ class OutreachMessage(WorkspaceModel):
     )
     provider = models.CharField(max_length=10, default="mock", editable=False)
     provider_message_id = models.CharField(max_length=100, blank=True, editable=False)
+    email_connection = models.ForeignKey(
+        EmailConnection, on_delete=models.PROTECT, null=True, blank=True, editable=False
+    )
+    connection_revision = models.PositiveIntegerField(default=0, editable=False)
+    sender_email = models.EmailField(max_length=254, blank=True, editable=False)
+    sender_name = models.CharField(max_length=150, blank=True, editable=False)
+    transport_started_at = models.DateTimeField(null=True, blank=True, editable=False)
     idempotency_key = models.CharField(max_length=100, editable=False)
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -124,7 +134,13 @@ class OutreachMessage(WorkspaceModel):
                 fields=["workspace", "idempotency_key"], name="unique_message_key"
             ),
             models.CheckConstraint(
-                condition=models.Q(provider__in=["mock", "manual"]), name="message_local_provider"
+                condition=models.Q(provider__in=["mock", "manual", "smtp"]), name="message_provider"
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(provider="smtp")
+                | models.Q(channel="EMAIL", email_connection__isnull=False)
+                & ~models.Q(sender_email=""),
+                name="message_smtp_identity",
             ),
             models.CheckConstraint(
                 condition=models.Q(direction="OUTBOUND"), name="message_outbound_v1"
@@ -146,6 +162,7 @@ class OutreachMessage(WorkspaceModel):
                             "REPLIED",
                             "CANCELLED",
                             "SUPPRESSED",
+                            "UNKNOWN",
                         )
                     ]
                 ),
@@ -153,7 +170,15 @@ class OutreachMessage(WorkspaceModel):
             ),
             models.CheckConstraint(
                 condition=~models.Q(
-                    status__in=["APPROVED", "QUEUED", "SENDING", "SENT", "DELIVERED", "READ"]
+                    status__in=[
+                        "APPROVED",
+                        "QUEUED",
+                        "SENDING",
+                        "SENT",
+                        "DELIVERED",
+                        "READ",
+                        "UNKNOWN",
+                    ]
                 )
                 | models.Q(approved_at__isnull=False, policy_review_confirmed=True),
                 name="message_approval_required",
@@ -171,7 +196,7 @@ class OutreachMessage(WorkspaceModel):
         ):
             raise ValidationError("Trabajo ajeno o no válido.")
         if self.body_html:
-            raise ValidationError("FASE 8 solo admite texto plano.")
+            raise ValidationError("Solo se admite texto plano.")
         if timezone.is_naive(self.scheduled_at):
             raise ValidationError("La programación debe incluir zona horaria.")
         if not self._state.adding:
