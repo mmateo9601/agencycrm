@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-13 · Complemento del dashboard V1
+
+- Dashboard comercial por workspace con empresas, leads activos por estado,
+  jobs fallidos y mensajes pendientes de aprobación; enlaces a los listados.
+- Agregados de lectura en selectors, permisos activos para todos los roles,
+  aislamiento incluso con varias membresías y consultas independientes del volumen.
+- Portada y navegación apuntan al dashboard; prueba E2E comprueba el embudo
+  después del envío simulado. Sin dependencias ni migraciones nuevas.
+- Documentados los entregables globales restantes sin inventar una nueva fase.
+- Validación: 504 tests, cobertura global 96% y dashboard 100%; Django check,
+  Ruff y detección de migraciones pendientes verdes. Arranque local comprobado.
+
 ## 0.12.0 — 2026-10-12 · FASE 12
 
 - Permisos de auditoría, exportación y retención por workspace y rol activo.

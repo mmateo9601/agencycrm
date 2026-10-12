@@ -1,0 +1,22 @@
+{% extends "workspace/base.html" %}
+{% block title %}Dashboard · {{ workspace.name }} · AgencyCRM{% endblock %}
+{% block workspace_content %}
+<h2>Dashboard comercial</h2>
+<p>Estado actual de este espacio de trabajo. Los leads archivados no se incluyen.
+  Cada lead aparece en un único estado; las cifras no son conversiones acumuladas.</p>
+<div class="row g-3">
+  {% for card in cards %}
+  <div class="col-sm-6 col-lg-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h3 class="h6"><a href="{{ card.url }}">{{ card.label }}</a></h3>
+        <p class="display-6 mb-0">{{ card.value }}</p>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<p class="text-muted mt-4">Las empresas incluyen registros inactivos. Los trabajos fallidos
+  incluyen el historial del espacio. El enlace de mensajes abre el outbox completo.
+  Recarga la página para actualizar las cifras.</p>
+{% endblock %}

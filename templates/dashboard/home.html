@@ -5,7 +5,7 @@
 <h2 class="h4 mt-4">Espacios de trabajo</h2>
 <div class="list-group">
 {% for workspace in workspaces %}
-  <a class="list-group-item list-group-item-action" href="{% url 'workspace:list' workspace.id 'companies' %}">{{ workspace.name }}</a>
+  <a class="list-group-item list-group-item-action" href="{% url 'dashboard' workspace.id %}">{{ workspace.name }}</a>
 {% empty %}
   <p>No tienes espacios de trabajo activos asignados. El administrador debe crear una membresía para tu usuario.</p>
 {% endfor %}

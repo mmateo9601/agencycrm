@@ -3,10 +3,11 @@ from django.contrib.auth.views import LogoutView
 from django.urls import include, path
 
 from apps.accounts.views import ApplicationLoginView
-from apps.dashboard.views import HomeView, health
+from apps.dashboard.views import DashboardView, HomeView, health
 from apps.outreach.whatsapp_webhooks import WhatsAppWebhookView
 
 urlpatterns = [
+    path("w/<uuid:workspace_id>/dashboard/", DashboardView.as_view(), name="dashboard"),
     path("w/<uuid:workspace_id>/audit/", include("apps.audit.urls")),
     path(
         "integrations/whatsapp/<uuid:workspace_id>/webhook/",

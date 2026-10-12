@@ -7,6 +7,19 @@ from django.views.generic import TemplateView
 from apps.accounts.selectors import workspaces_for_user
 from common.health import database_available
 
+from .presentation import dashboard_context
+
+
+class DashboardView(LoginRequiredMixin, TemplateView):
+    template_name = "dashboard/workspace.html"
+    http_method_names = ["get", "head", "options"]
+
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(
+            **dashboard_context(user=self.request.user, workspace_id=self.kwargs["workspace_id"]),
+            **kwargs,
+        )
+
 
 class HomeView(LoginRequiredMixin, TemplateView):
     template_name = "dashboard/home.html"

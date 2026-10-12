@@ -533,6 +533,7 @@ def test_mock_transport_is_outside_transaction_and_late_pause_blocks_receipt(out
 def test_full_mock_pipeline_and_second_attempt_suppression(outreach):
     from apps.companies.enrichment import enqueue_enrichment
     from apps.crm.models import Lead
+    from apps.dashboard.selectors import dashboard_for_user
     from apps.proposals.services import enqueue_proposal
     from apps.scoring.services import enqueue_score
     from tests.test_prospecting import plan_for
@@ -578,6 +579,10 @@ def test_full_mock_pipeline_and_second_attempt_suppression(outreach):
     message = approve(env, prepare(env))
     queue(env, message)
     assert JobRunner().run_once().status == "SUCCEEDED"
+    dashboard = dashboard_for_user(user=member.user, workspace_id=member.workspace_id)
+    assert dashboard.companies_total == dashboard.leads_total == 4
+    assert {count.status: count.value for count in dashboard.lead_counts}["CONTACTED"] == 1
+    assert dashboard.jobs_failed == dashboard.messages_pending == 0
     env["proposal"] = fresh_proposal(env)
     next_message = approve(env, prepare(env))
     add_suppression(

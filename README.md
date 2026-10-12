@@ -1,4 +1,4 @@
-# AgencyCRM — FASE 12 · Hardening
+# AgencyCRM — FASE 12 · Hardening y dashboard
 
 Base local de AgencyCRM siguiendo `IMPLEMENTATION_PLAYBOOK_AGENCYCRM.md`.
 Implementadas FASE 0 a FASE 12: base Django, CRM, cola local, prospección mock,
@@ -8,6 +8,25 @@ y recordatorios internos. Python **3.14**, Django 6.1.x y DRF 3.18.x.
 Incluye CSP, permisos operativos, auditoría, CSV, retención y backup/restore local.
 WhatsApp está verificado con HTTP mocks; el ensayo real controlado queda pendiente
 de configuración y autorización del operador.
+
+## Dashboard por workspace
+
+Al entrar en un espacio desde la portada se abre `/w/<uuid>/dashboard/`.
+Todos los roles con membresía activa pueden consultar empresas totales, leads
+activos por estado, trabajos fallidos y mensajes pendientes de aprobación.
+Los enlaces llevan al CRM filtrado por estado, a los jobs fallidos y al outbox.
+La navegación del workspace permite volver al dashboard desde cualquier ficha.
+
+Las cifras son estados actuales, no conversiones acumuladas: cada lead cuenta
+una vez y los archivados se excluyen. Las empresas incluyen registros inactivos;
+los jobs fallidos incluyen el historial. El enlace de mensajes abre el outbox
+completo. Las cifras se recalculan al recargar con cuatro consultas agregadas,
+sin caché, jobs, mutaciones ni llamadas externas. No hacen falta migraciones.
+
+Este complemento cubre el dashboard de las secciones 22 y 33 del playbook.
+Siguen pendientes `seed_demo`, la API interna de la sección 23 y los comandos
+operativos `rebuild_scores` / `refresh_dashboard_metrics`. No existe una FASE 13
+en el playbook; estos entregables globales deben completarse en cambios acotados.
 
 ## Uso de FASE 12
 
@@ -806,8 +825,9 @@ por falta de configuración/autorización y la restricción de no realizar conex
   media temporal y proveedores obligatoriamente mock.
 - `apps/accounts/`: custom User basado en AbstractUser desde `0001_initial`,
   modelos UUID, admin y selectores con aislamiento explícito.
-- `apps/dashboard/`: portada y view HTTP de health; la comprobación de DB vive
-  en `common/health.py`. No hay lógica de negocio en views ni signals propias.
+- `apps/dashboard/`: portada, métricas por workspace en selectors, presentación
+  de contadores/enlaces y view HTTP de health; la comprobación de DB vive en
+  `common/health.py`. No hay lógica de negocio en views ni signals propias.
 - `apps/companies/`, `apps/campaigns/`, `apps/crm/`: modelos, formularios,
   selectores y servicios del dominio. Las mutaciones son transaccionales y
   validan relaciones, permisos y campos explícitos antes de persistir.

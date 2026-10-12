@@ -5,6 +5,7 @@
   {% if not can_write %}<span class="badge text-bg-secondary">Solo lectura</span>{% endif %}
 </div>
 <nav class="nav nav-pills gap-1 mb-4" aria-label="Navegación del espacio">
+  <a class="nav-link {% if dashboard_active %}active{% endif %}" href="{% url 'dashboard' workspace.id %}">Dashboard</a>
   {% if can_audit %}<a class="nav-link" href="{% url 'audit:events' workspace.id %}">Auditoría</a>{% endif %}
   {% if can_export %}<a class="nav-link" href="{% url 'audit:export' workspace.id %}">Exportar CSV</a>{% endif %}
   {% if can_retention %}<a class="nav-link" href="{% url 'audit:retention' workspace.id %}">Retención</a>{% endif %}
