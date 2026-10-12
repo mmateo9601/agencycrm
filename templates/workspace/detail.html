@@ -7,6 +7,7 @@
   </div>
 </div>
 {% if state_error %}<p class="alert alert-danger">{{ state_error }}</p>{% endif %}
+{% if resource.key == 'companies' %}<p><a class="btn btn-outline-primary" href="{% url 'enrichment:company' workspace.id object.pk %}">Enriquecimiento web</a></p>{% endif %}
 {% if can_write and campaign_target %}
 <form method="post" action="{% url 'workspace:state' workspace.id resource.key object.pk %}" class="mb-3">{% csrf_token %}<input type="hidden" name="target" value="{{ campaign_target }}"><button class="btn btn-outline-primary" type="submit">{% if campaign_target == 'READY' %}Marcar preparada{% else %}Volver a borrador{% endif %}</button></form>
 {% endif %}

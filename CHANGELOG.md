@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.0 — 2026-10-12 · FASE 5
+
+- Transporte HTTP con IP pública fijada tras DNS acotado, TLS verificado,
+  protección SSRF, límites globales de tiempo/bytes/peticiones y redirects explícitos.
+- Crawler secuencial con robots.txt, delay, extractores HTML y proveedor mock
+  predeterminado; web real requiere doble activación. Sin consultas reales.
+- WebsiteObservation por intento, enriquecimiento idempotente de contactos/perfiles,
+  auditoría transaccional y ejecución ENRICH_COMPANY fuera de transacciones HTTP.
+- UI desde la empresa, historial paginado, CSRF y comprobaciones de workspace,
+  permisos y URL antes y después de la adquisición.
+- Dos migraciones aditivas y dependencias justificadas BeautifulSoup/httpcore.
+- Pruebas con fixtures, sockets/DNS bloqueados, SSRF, robots, límites, rollback,
+  revocación, recuperación y reintentos. Sin funcionalidades de FASE 6.
+
 ## 0.4.0 — 2026-10-06 · FASE 4
 
 - GooglePlacesProvider con Text Search, Nearby Search y Place Details, FieldMasks

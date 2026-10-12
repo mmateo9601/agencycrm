@@ -1,0 +1,20 @@
+{% extends "workspace/base.html" %}
+{% block workspace_content %}
+<h2 class="h4">Enriquecimiento web · {{ company.name }}</h2>
+<p><a href="{% url 'workspace:detail' workspace.id 'companies' company.pk %}">Volver a empresa</a></p>
+<p>Web: {{ company.website|default:'Sin web' }} · Proveedor: {{ provider }}</p>
+<p>Se consultan páginas públicas y robots.txt. Los datos observados no autorizan el envío de mensajes.</p>
+{% if provider == 'mock' %}<p class="alert alert-info">Simulación sin red, solo para empresas ficticias con dominio .invalid.</p>{% endif %}
+{% if can_write %}<form method="post" class="mb-4">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary" type="submit">Encolar análisis web</button></form>{% endif %}
+{% for observation in page_obj %}
+<section class="card card-body mb-3">
+<h3 class="h5">{{ observation.title|default:'Análisis web' }}</h3>
+<p>{{ observation.crawl_finished_at }} · {{ observation.get_provider_display }} · {{ observation.pages_crawled }} páginas · HTTP {{ observation.status_code|default:'—' }}</p>
+<p><a href="{% url 'jobs:detail' workspace.id observation.job_id %}">Trabajo · intento {{ observation.attempt }}</a></p>
+{% if observation.error_code %}<p class="alert alert-warning">{{ observation.error_code }}: {{ observation.error_message }}</p>{% endif %}
+<p>{{ observation.meta_description }}</p>
+<p>Contacto: {{ observation.has_contact_page|yesno:'Sí,No' }} · Privacidad: {{ observation.has_privacy_page|yesno:'Sí,No' }} · Reservas: {{ observation.has_booking|yesno:'Sí,No' }} · Tienda: {{ observation.has_ecommerce|yesno:'Sí,No' }}</p>
+<ul>{% for email in observation.detected_emails %}<li>{{ email }}</li>{% endfor %}{% for phone in observation.detected_phones %}<li>{{ phone }}</li>{% endfor %}{% for social in observation.detected_social_urls %}<li>{{ social.platform }}: {{ social.url }}</li>{% endfor %}</ul>
+</section>{% empty %}<p>Todavía no hay observaciones.</p>{% endfor %}
+<nav aria-label="Observaciones">{% if page_obj.has_previous %}<a href="{% querystring page=page_obj.previous_page_number %}">Anterior</a>{% endif %} Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} {% if page_obj.has_next %}<a href="{% querystring page=page_obj.next_page_number %}">Siguiente</a>{% endif %}</nav>
+{% endblock %}

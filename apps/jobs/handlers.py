@@ -57,7 +57,15 @@ def run_search_item(context: ExecutionContext) -> dict:
     return run_search(context)
 
 
+def enrich_company(context: ExecutionContext) -> dict:
+    """Dispatch website enrichment to its application service."""
+    from apps.companies.enrichment import run_enrichment
+
+    return run_enrichment(context)
+
+
 HANDLERS: dict[str, Callable[[ExecutionContext], dict]] = {
+    Job.Kind.ENRICH_COMPANY: enrich_company,
     Job.Kind.CHECK_MOCK_PROVIDERS: check_mock_providers,
     Job.Kind.RUN_SEARCH_ITEM: run_search_item,
 }

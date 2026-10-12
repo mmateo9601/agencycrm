@@ -13,6 +13,10 @@ SCENARIOS = [
 
 def validate_payload(kind: str, payload: dict) -> dict:
     """Accept explicit schemas only; resource IDs are separately authorized on enqueue."""
+    if kind == Job.Kind.ENRICH_COMPANY:
+        from apps.companies.enrichment import validate_enrichment_payload
+
+        return validate_enrichment_payload(payload)
     if kind == Job.Kind.RUN_SEARCH_ITEM:
         if not isinstance(payload, dict) or set(payload) != {"item_id"}:
             raise ValidationError("La búsqueda requiere únicamente item_id.")

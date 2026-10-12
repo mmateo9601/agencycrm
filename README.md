@@ -1,9 +1,9 @@
-# AgencyCRM — FASE 4 · Google Places
+# AgencyCRM — FASE 5 · Enriquecimiento web
 
 Base local de AgencyCRM siguiendo `IMPLEMENTATION_PLAYBOOK_AGENCYCRM.md`.
-Implementadas FASE 0 a FASE 4: base Django, CRM, cola local, prospección mock,
-CSV y adaptador Google Places con activación explícita.
-Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 5.
+Implementadas FASE 0 a FASE 5: base Django, CRM, cola local, prospección mock,
+CSV, Google Places y enriquecimiento web con activación explícita.
+Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 6.
 
 ## Instalación (PowerShell)
 
@@ -95,7 +95,7 @@ reprograma, incluso después de un reintento. Cambiar tipo, payload, prioridad o
 presupuesto con esa clave produce un error.
 
 Los tipos de trabajo del playbook están declarados. Se ejecutan el diagnóstico
-y `RUN_SEARCH_ITEM`; los demás handlers llegarán en sus fases. No hay
+y `RUN_SEARCH_ITEM` y `ENRICH_COMPANY`; los demás handlers llegarán en sus fases. No hay
 scoring, propuestas ni outreach. Las comprobaciones de elegibilidad
 y consentimiento pertenecen a la futura fase de outreach; no existe un handler
 de envío que permita saltárselas.
@@ -267,6 +267,81 @@ credenciales reales**; la comprobación operativa contra una cuenta Google queda
 pendiente de que el operador configure sus credenciales y presupuesto. No se
 modifica `.env` para activar Google durante la implementación.
 
+## Uso de FASE 5
+
+Desde la ficha de una empresa, abrir **Enriquecimiento web → Encolar análisis web**.
+La acción POST con CSRF encola `ENRICH_COMPANY`; consultar su progreso en Trabajos
+y volver a la ficha para ver el historial paginado de observaciones. El worker
+existente procesa también estos trabajos:
+
+```powershell
+python manage.py run_worker --kinds ENRICH_COMPANY
+```
+
+El proveedor predeterminado `WEBSITE_PROVIDER=mock` utiliza HTML ficticio local,
+sin DNS ni sockets. Solo acepta empresas con web en un dominio `.invalid` para
+evitar atribuir datos ficticios a empresas reales. Las observaciones identifican
+claramente el proveedor. Las fixtures incluyen correo, teléfono y perfil social
+de demostración; ningún teléfono se convierte automáticamente en WhatsApp.
+
+El operador puede habilitar el rastreo público mediante **ambos** valores:
+
+```env
+WEBSITE_PROVIDER=web
+WEB_CRAWLER_ENABLED=true
+```
+
+Reiniciar servidor y worker tras cambiar el entorno. Cada trabajo conserva su
+empresa, URL y proveedor; los trabajos mock pendientes siguen siendo mock.
+Desactivar el proveedor real impide ejecutar sus trabajos pendientes. Los permisos,
+la empresa activa y su URL se revalidan antes de adquirir y antes de guardar.
+
+**Política de rastreo:** GET secuenciales, sin JavaScript, autenticación, cookies,
+proxies heredados ni envío de formularios. Se consulta robots.txt antes de cada
+página y de cada salto de redirección. Un 404 de robots permite continuar; otros
+errores impiden el rastreo. Se respeta Crawl-delay y Request-rate. Se visita la
+portada y enlaces internos de contacto, servicios, nosotros y reservas. Los enlaces
+sociales se registran sin visitarlos. Privacidad, reservas, tienda, formularios y
+analytics se registran como señales observadas; todavía no generan scores.
+
+**Límites:** 8 páginas como máximo, 5 redirecciones por recurso, 54 peticiones
+incluyendo robots y redirects, 2 MB acumulados de cuerpos y 60 segundos totales
+predeterminados. `.env.example` documenta tamaño, páginas, delay y timeouts;
+hay techos de 8 páginas, 2 MB y 120 segundos. El delay mínimo real es 0,1 s.
+La resolución DNS usa un subproceso síncrono acotado por el plazo restante,
+exclusivamente desde el worker. Conexión, TLS y lecturas comparten ese plazo.
+El worker único evita peticiones simultáneas al mismo dominio.
+
+**SSRF:** se comprueban todas las IP resueltas y se conecta directamente a una IP
+pública validada, preservando hostname/SNI y verificación TLS. Se comprueba la IP
+del socket; cada conexión resuelve y valida de nuevo. Se bloquean IP privadas,
+reservadas, metadata, loopback y mecanismos IPv6 de transición. Solo HTTP/HTTPS
+en puertos estándar; se rechazan credenciales y queries. No se permiten cambios
+de hostname (incluido `www`) ni downgrade HTTPS. Las rutas de acceso/administración
+se excluyen también cuando están codificadas. Solo se aceptan HTML/texto sin
+compresión. Estas restricciones pueden impedir analizar sitios legítimos; no
+se ofrece un bypass de seguridad.
+
+**Persistencia:** `WebsiteObservation` conserva datos normalizados, procedencia,
+fechas, páginas y errores seguros por intento. No se guarda HTML. Se añaden
+contactos y perfiles ausentes sin modificar datos manuales ni `do_not_contact`.
+Observación, contactos y auditoría se guardan juntos después de HTTP. Recuperar
+un trabajo con éxito ya confirmado no repite la adquisición ni crea duplicados.
+Timeout, 429 (incluido Retry-After HTTP-date) y 5xx usan los reintentos limitados
+del job. Un fallo aborta la observación de ese intento, deja un error visible y
+no cambia campañas ni impide procesar otras empresas.
+
+Se ha validado con fixtures y transportes simulados; **no se han visitado webs
+reales**. Quedan fuera renderizado JS, sitios con login/CAPTCHA, extracción de
+datos personales ajenos al contexto comercial y todo scoring de FASE 6.
+
+Migraciones nuevas:
+
+- `companies/0002_websiteobservation`: observaciones UUID, índice por workspace
+  y empresa, relaciones protegidas y unicidad por job/intento.
+- `companies/0003_websiteobservation_website_attempt_positive_and_more`: constraints
+  de intento positivo, proveedor, límite de páginas y orden temporal.
+
 ## Estructura y decisiones
 
 - `config/settings/base.py`: configuración común, autenticación DRF por sesión,
@@ -364,15 +439,17 @@ validadas para reproducir esta entrega.
 | python-dotenv | Carga de `.env` local sin sobrescribir el entorno |
 | tzdata | Base IANA para Europe/Madrid, necesaria en Windows |
 | phonenumbers | Validación y normalización E.164 de empresas/contactos, sin red |
-| httpx 0.28.x | Cliente HTTP de Places con timeouts y transporte sustituible en tests |
+| httpx 0.28.x | HTTP de Places y webs con timeouts y transportes sustituibles en tests |
+| httpcore 1.0.x | Backend público para fijar la conexión a una IP validada y conservar TLS |
+| beautifulsoup4 | Parsing HTML acotado y extracción sin ejecutar JavaScript |
 | pytest / pytest-django | Pruebas y bases de datos de test aisladas |
 | factory-boy | Datos ficticios reproducibles de test |
 | coverage | Medición de cobertura (umbral 80%) |
 | Ruff | Lint y formato de Python 3.14 |
 
 El lock incluye las dependencias transitivas de estas herramientas. El worker usa
-solo Django y la biblioteca estándar; FASE 4 añade httpx para la adquisición.
-Parsing HTML y generación documental se aplazan a sus fases.
+solo Django y la biblioteca estándar para la cola; las integraciones usan los
+clientes y parsers indicados. La generación documental se aplaza a su fase.
 Bootstrap es el único recurso frontend externo vendorizado; se
 copió de una distribución 5.3.2 ya disponible localmente conservando su cabecera.
 

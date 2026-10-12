@@ -7,6 +7,9 @@ tzdata>=2025.2
 phonenumbers>=9,<10
 # Phase 4: bounded HTTP transport and injectable mock transport for Places API New.
 httpx>=0.28,<0.29
+# Phase 5: public network backend API for DNS pinning; bounded HTML parsing.
+httpcore>=1.0.9,<1.1
+beautifulsoup4>=4.13,<5
 # Development and verification.
 pytest>=8.4,<10
 pytest-django>=4.11,<5

@@ -14,3 +14,5 @@ def block_network(monkeypatch):
         monkeypatch.setattr(socket.socket, name, forbidden)
     monkeypatch.setattr(socket, "create_connection", forbidden)
     monkeypatch.setattr(socket, "getaddrinfo", forbidden)
+    # DNS runs in a bounded subprocess in production; it must also remain offline here.
+    monkeypatch.setattr("integrations.websites.http.resolve_public", forbidden)

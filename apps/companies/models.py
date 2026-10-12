@@ -12,6 +12,8 @@ from common.normalization import (
     normalize_phone,
 )
 
+from .website_models import WebsiteObservation as WebsiteObservation
+
 
 class Company(WorkspaceModel):
     name = models.CharField(max_length=200)
