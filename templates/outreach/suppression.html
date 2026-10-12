@@ -1,0 +1,5 @@
+{% extends "workspace/base.html" %}{% block workspace_content %}<h2 class="h4">Supresión</h2>
+<p>Los bloqueos se aplican en todo el workspace, también entre campañas. Para empresa, selecciona la empresa y deja el valor vacío. Sin caducidad, el bloqueo es permanente hasta desactivación explícita.</p>
+{% if can_delete %}<form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-danger">Añadir bloqueo</button></form>{% endif %}
+<table class="table"><thead><tr><th>Ámbito</th><th>Valor</th><th>Motivo</th><th>Caducidad</th><th></th></tr></thead><tbody>{% for block in page_obj %}<tr><td>{{ block.get_scope_display }}</td><td>{{ block.normalized_value }}</td><td>{{ block.reason }}</td><td>{{ block.expires_at|default:'Sin caducidad' }}</td><td>{% if can_delete %}<form method="post" action="{% url 'outreach:expire' workspace.id block.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Desactivar bloqueo</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table>
+{% include "outreach/pagination.html" %}{% endblock %}

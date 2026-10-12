@@ -1,0 +1,3 @@
+{% extends "workspace/base.html" %}{% block workspace_content %}<h2 class="h4">Preparar mensaje</h2>
+<p>Selecciona propuesta y contacto de su empresa. Dejar texto vacío utiliza la propuesta. El contenido se conserva; las correcciones requieren un mensaje nuevo y otra aprobación.</p>
+<form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary">Guardar para revisión</button></form>{% endblock %}

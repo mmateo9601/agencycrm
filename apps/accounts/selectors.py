@@ -15,6 +15,7 @@ def workspaces_for_user(*, user: User) -> QuerySet[Workspace]:
     return Workspace.objects.filter(
         is_active=True,
         memberships__user=user,
+        memberships__user__is_active=True,
         memberships__is_active=True,
     ).order_by("name", "id")
 

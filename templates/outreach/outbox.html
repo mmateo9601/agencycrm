@@ -1,0 +1,5 @@
+{% extends "workspace/base.html" %}{% block workspace_content %}
+<h2 class="h4">Outbox · simulación</h2><p>No salen mensajes al exterior. Las acciones manuales crean tareas para el operador.</p>
+<p>{% if can_write %}<a class="btn btn-primary" href="{% url 'outreach:prepare' workspace.id %}">Preparar mensaje</a>{% endif %} <a href="{% url 'outreach:settings' workspace.id %}">Límites y pausa de emergencia</a></p>
+<table class="table"><thead><tr><th>Mensaje</th><th>Canal</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>{% for message in page_obj %}<tr><td><a href="{% url 'outreach:message' workspace.id message.pk %}">{{ message.subject }}</a></td><td>{{ message.get_channel_display }}</td><td>{{ message.get_status_display }}</td><td>{{ message.created_at }}</td></tr>{% endfor %}</tbody></table>
+{% include "outreach/pagination.html" %}{% endblock %}

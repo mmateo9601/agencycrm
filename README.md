@@ -1,9 +1,9 @@
-# AgencyCRM — FASE 7 · Propuestas y documentos
+# AgencyCRM — FASE 8 · Compliance y outreach mock
 
 Base local de AgencyCRM siguiendo `IMPLEMENTATION_PLAYBOOK_AGENCYCRM.md`.
-Implementadas FASE 0 a FASE 7: base Django, CRM, cola local, prospección mock,
-CSV, Google Places, enriquecimiento web, scoring y propuestas con PDF.
-Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 8.
+Implementadas FASE 0 a FASE 8: base Django, CRM, cola local, prospección mock,
+CSV, Google Places, enriquecimiento web, scoring, propuestas y contacto simulado.
+Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 9.
 
 ## Instalación (PowerShell)
 
@@ -95,9 +95,8 @@ reprograma, incluso después de un reintento. Cambiar tipo, payload, prioridad o
 presupuesto con esa clave produce un error.
 
 Los tipos de trabajo del playbook están declarados. Se ejecutan el diagnóstico
-y `RUN_SEARCH_ITEM`, `ENRICH_COMPANY`, `SCORE_LEAD` y `GENERATE_PROPOSAL`.
-Outreach llegará en su fase. Las comprobaciones de elegibilidad
-y consentimiento pertenecen a la futura fase de outreach; no existe un handler
+y `RUN_SEARCH_ITEM`, `ENRICH_COMPANY`, `SCORE_LEAD`, `GENERATE_PROPOSAL` y `SEND_OUTREACH`.
+El contacto simulado comprueba elegibilidad y aprobación humana. No existe un handler
 de envío que permita saltárselas.
 
 Solo un worker puede usar una base de datos local. Un bloqueo del sistema operativo
@@ -483,6 +482,110 @@ elegibilidad comercial ni funcionalidades de FASE 8.
 Migración `proposals/0001_initial`: Proposal, SalesAsset y ProposalAttachment,
 relaciones protegidas, unicidad por lead/versión y workspace/clave, límite de
 tamaño, estados válidos y requisito de aprobación para APPROVED/SENT.
+
+## Uso de FASE 8
+
+La instalación sigue en **simulation**. Email y WhatsApp utilizan exclusivamente
+MockEmailProvider/MockWhatsAppProvider: no SMTP, HTTP ni mensajes externos.
+Cambiar el modo, proveedor o el indicador reservado `live_mode_enabled` no habilita
+envíos reales. El futuro modo real requiere otra fase y doble activación explícita.
+
+Flujo de trabajo:
+
+1. Preparar la campaña (READY/RUNNING), habilitar sus canales y marcar el lead READY
+   mediante las transiciones de CRM. Campañas DRAFT/PAUSED y leads con respuesta,
+   reunión o cierre bloquean contacto en esta fase.
+2. Generar, revisar y aprobar una propuesta de la versión vigente.
+3. Abrir **Outbox → Preparar mensaje**, elegir propuesta, contacto empresarial y canal.
+   El texto vacío usa resumen y próximos pasos; se conservan destinatario, texto y PDF
+   con los adjuntos originales. El contenido es inmutable; cambios requieren otro mensaje.
+4. OWNER/ADMIN revisa contenido, destinatario, adjuntos y la política aplicable y confirma
+   la aprobación humana. La aprobación vincula todo por SHA-256 y revisión incremental.
+5. Un rol con escritura encola la simulación/tarea. El worker reevalúa la política antes
+   de reservar un intento, después de validar archivos y antes de confirmar el resultado.
+6. Un recibo mock registra SENT, eventos y auditoría, pasa READY → CONTACTED y actualiza
+   `last_contact_at`. La propuesta pasa a SENT. Este estado registra **simulación**.
+
+```powershell
+python manage.py run_worker --kinds SEND_OUTREACH
+```
+
+El job solo contiene `message_id`, siempre resuelto en su workspace. Un job que no
+esté asociado al mensaje no puede procesarlo. Cada mensaje conserva una clave
+idempotente; repetir preparación/encolado devuelve el original. Recuperar un job
+ya confirmado reutiliza su recibo sin llamar de nuevo al provider. Los mocks generan
+recibos estables por workspace, canal y clave. No se implementa PREPARE_OUTREACH como
+job: preparar texto local es un service corto y no requiere worker.
+
+**Elegibilidad:** ContactEligibilityDecision es append-only y guarda versión de
+política, fecha, actor y motivos. La preview GET es de solo lectura; un POST o el
+worker registra la evaluación. Se comprueban workspace, usuario/membership activos,
+empresa/campaña/lead, datos empresariales, destinatario vigente, propuesta y mensaje
+aprobados, aprobador activo OWNER/ADMIN, hash de contenido/adjuntos, confirmación
+de revisión, canal habilitado, fecha programada, pausa, límites y modo simulation.
+Datos públicos no implican autorización comercial; la política/jurisdicción aplicable
+debe revisarla el operador. No se automatiza esa decisión ni se afirma cumplimiento jurídico.
+
+WhatsApp necesita `whatsapp_e164` explícito. Un teléfono ordinario no se copia a
+WhatsApp. El cambio de destinatario o contenido después de aprobar bloquea el mensaje.
+Los mensajes con propuesta sustituida o sin aprobación vigente tampoco se procesan.
+Después de registrar SENT, una nueva propuesta/mensaje requiere nueva aprobación;
+no se reenvía automáticamente la propuesta ya enviada.
+
+**Supresión:** OWNER/ADMIN crea bloqueos EMAIL, PHONE, DOMAIN o COMPANY con motivo,
+fuente y caducidad opcional. Se normalizan email, teléfono E.164, dominio y UUID de
+empresa. El bloqueo pertenece al workspace y se aplica entre sus campañas; dominio
+incluye subdominios. Se comparan todos los identificadores conocidos del contacto y
+empresa, de forma conservadora entre canales. Desactivar fija la caducidad y conserva
+registro/auditoría; reactivar reutiliza el mismo valor normalizado. No hay borrado por GET.
+
+**Límites:** OutreachSettings parte de `.env.example` (25 email/día, 10 WhatsApp/día,
+14 días de cooldown) y máximo 3 intentos por empresa. OWNER/ADMIN puede configurar
+límites y cooldown; aprobación humana permanece obligatoria. El día se calcula según
+`DEFAULT_TIMEZONE`, por defecto Europe/Madrid, independientemente del timezone del
+usuario. El cooldown usa el mayor del workspace y del canal, y consulta último contacto
+de la empresa entre campañas. Los intentos se limitan por empresa y por canal y consumen
+cuota al reservarse, incluidos fallos; una reserva conservada en SENDING no se cuenta
+dos veces al recuperar el mismo intento. Límites diarios cero deshabilitan ese canal.
+
+Las reservas, estados, decisiones y auditoría se guardan en transacciones cortas;
+la llamada mock y lectura de archivos quedan fuera. Un fallo temporal mock puede
+reintentarse dentro del presupuesto del job y del canal/empresa. Un fallo permanente
+queda FAILED. Esta recuperación depende de la idempotencia conocida del mock; antes
+de implementar un transporte real se deberá resolver aceptación incierta tras timeout,
+sin trasladar este replay a un proveedor real. Cancelar/fallar un job proyecta el estado
+en su mensaje con eventos; no quedan mensajes encolados por revocación de acceso.
+
+**Pausa de emergencia:** en **Outbox → Límites y pausa**, OWNER/ADMIN puede pausar o
+reanudar. La pausa no borra jobs ni datos. Mensajes aprobados/encolados se bloquean
+cuando se evalúan; terminan SUPPRESSED sin llamar al provider y requieren un nuevo
+mensaje/aprobación tras corregir el motivo. Esto evita reactivar envíos antiguos al reanudar.
+
+**Canales manuales:** PHONE crea CALL; CONTACT_FORM, LINKEDIN, INSTAGRAM y OTHER crean
+SalesTask. No se llama, publica ni envía formularios automáticamente. El operador ve
+destino e instrucciones, comprueba la elegibilidad y registra el resultado de su acción.
+Completar reevalúa la política y registra contacto/eventos una sola vez; si aparece un
+bloqueo, la tarea se cancela. No hay reglas de seguimiento ni programación automática
+de FASE 11. El estado final manual representa una acción declarada por el operador.
+
+Los adjuntos MessageAttachment referencian únicamente PDF/activos protegidos de la
+propuesta y su workspace; se verifica integridad antes de aprobar y procesar. No se
+guardan cuerpos ni destinatarios en metadata de auditoría/eventos. Las pantallas tienen
+CSRF, autoescape, permisos por workspace y paginación. Las fichas de lead incluyen
+propuestas, mensajes y tareas. El admin de estos modelos es de solo lectura.
+
+Migraciones:
+
+- `outreach/0001_initial`: OutreachSettings, OutreachMessage, MessageAttachment,
+  MessageEvent y SalesTask; rangos, aprobación obligatoria, proveedores locales,
+  claves/eventos/adjuntos únicos y referencias protegidas.
+- `compliance/0001_initial` y `0002_initial`: SuppressionEntry y
+  ContactEligibilityDecision, relaciones por workspace y unicidad de supresión.
+
+La prueba E2E recorre mock Places → empresa/lead → enriquecimiento → scoring →
+propuesta → aprobación → mensaje → aprobación → envío mock, y verifica que una
+supresión posterior bloquea otro intento. Tests bloquean DNS/sockets; no hay
+credenciales, transportes reales ni nuevas dependencias de FASE 8.
 
 ## Estructura y decisiones
 

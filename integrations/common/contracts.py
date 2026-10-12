@@ -53,12 +53,20 @@ class PlacesProvider(Protocol):
 
 
 @dataclass(frozen=True)
+class SendAttachment:
+    filename: str
+    mime_type: str
+    data: bytes
+
+
+@dataclass(frozen=True)
 class SendMessageRequest:
     workspace_id: UUID
     idempotency_key: str
     recipient: str
     body_text: str
     subject: str = ""
+    attachments: tuple[SendAttachment, ...] = ()
 
 
 @dataclass(frozen=True)

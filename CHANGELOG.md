@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.8.0 — 2026-10-12 · FASE 8
+
+- Supresión normalizada por workspace y decisiones append-only de elegibilidad,
+  límites diarios por timezone, cooldown, máximo de intentos y pausa de emergencia.
+- Mensajes inmutables, aprobación humana vinculada por hash, adjuntos protegidos,
+  eventos idempotentes y SEND_OUTREACH exclusivamente mock en el worker.
+- Tareas manuales para teléfono, formularios y redes; sin automatización externa.
+- Reevaluación antes/después de archivos, reservas y transporte; recuperación mock,
+  errores sanitizados y sincronización de jobs cancelados/fallidos con mensajes.
+- UI de outbox, elegibilidad, supresión, límites y tareas con CSRF y permisos.
+- Tres migraciones y pruebas de políticas, aislamiento, idempotencia y E2E completo.
+  Corregida la revocación de cuentas mediante consulta SQL de usuario activo.
+- Sin dependencias nuevas, proveedores reales ni funcionalidades de FASE 9.
+
 ## 0.7.0 — 2026-10-12 · FASE 7
 
 - Proposal, SalesAsset y ProposalAttachment con migración inicial, UUID,

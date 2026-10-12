@@ -29,6 +29,8 @@ INSTALLED_APPS = [
     "apps.prospecting",
     "apps.scoring",
     "apps.proposals",
+    "apps.compliance",
+    "apps.outreach",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -100,6 +102,9 @@ FILE_UPLOAD_HANDLERS = [
 MAILERS = {"default": {"BACKEND": "django.core.mail.backends.console.EmailBackend"}}
 # Outbound messaging remains simulation-only. Places has a separate explicit opt-in.
 OUTREACH_MODE = "simulation"
+MAX_EMAILS_PER_DAY = int(os.getenv("MAX_EMAILS_PER_DAY", "25"))
+MAX_WHATSAPP_PER_DAY = int(os.getenv("MAX_WHATSAPP_PER_DAY", "10"))
+CONTACT_COOLDOWN_DAYS = int(os.getenv("CONTACT_COOLDOWN_DAYS", "14"))
 EMAIL_PROVIDER = WHATSAPP_PROVIDER = AI_PROVIDER = "mock"
 PLACES_PROVIDER = os.getenv("PLACES_PROVIDER", "mock").strip().lower()
 GOOGLE_PLACES_ENABLED = os.getenv("GOOGLE_PLACES_ENABLED", "false").lower() == "true"

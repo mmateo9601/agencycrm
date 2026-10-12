@@ -13,6 +13,13 @@ SCENARIOS = [
 
 def validate_payload(kind: str, payload: dict) -> dict:
     """Accept explicit schemas only; resource IDs are separately authorized on enqueue."""
+    if kind == Job.Kind.SEND_OUTREACH:
+        if not isinstance(payload, dict) or set(payload) != {"message_id"}:
+            raise ValidationError("El envío solo admite message_id.")
+        try:
+            return {"message_id": str(UUID(str(payload["message_id"])))}
+        except (ValueError, TypeError) as error:
+            raise ValidationError("Identificador de mensaje no válido.") from error
     if kind == Job.Kind.GENERATE_PROPOSAL:
         try:
             if (

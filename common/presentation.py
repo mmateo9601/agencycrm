@@ -32,6 +32,9 @@ def detail_context(*, obj: models.Model, params) -> dict:
             ("Contactos", obj.company.contacts.filter(workspace_id=obj.workspace_id)[:25]),
             ("Fuentes", obj.company.external_refs.filter(workspace_id=obj.workspace_id)[:25]),
             ("Oportunidades", obj.opportunities.filter(workspace_id=obj.workspace_id)[:25]),
+            ("Propuestas", obj.proposals.filter(workspace_id=obj.workspace_id)[:25]),
+            ("Mensajes", obj.outreach_messages.filter(workspace_id=obj.workspace_id)[:25]),
+            ("Tareas manuales", obj.sales_tasks.filter(workspace_id=obj.workspace_id)[:25]),
         ]
     elif isinstance(obj, Company):
         context["related_sections"] = [

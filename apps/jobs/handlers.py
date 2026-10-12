@@ -78,7 +78,15 @@ def generate_proposal(context: ExecutionContext) -> dict:
     return run_proposal(context)
 
 
+def send_outreach(context: ExecutionContext) -> dict:
+    """Dispatch guarded local simulation or creation of a manual task."""
+    from apps.outreach.services import send_outreach as send
+
+    return send(context)
+
+
 HANDLERS: dict[str, Callable[[ExecutionContext], dict]] = {
+    Job.Kind.SEND_OUTREACH: send_outreach,
     Job.Kind.GENERATE_PROPOSAL: generate_proposal,
     Job.Kind.SCORE_LEAD: score_lead,
     Job.Kind.ENRICH_COMPANY: enrich_company,
