@@ -1,0 +1,6 @@
+{% extends "workspace/base.html" %}
+{% block workspace_content %}<h2 class="h4">Propuestas</h2>
+<p>{% if can_write %}<a class="btn btn-primary" href="{% url 'proposals:generate' workspace.id %}">Generar propuesta</a>{% endif %} <a class="btn btn-outline-primary" href="{% url 'proposals:assets' workspace.id %}">Activos comerciales</a></p>
+<table class="table"><thead><tr><th>Propuesta</th><th>Versión</th><th>Estado</th><th>Lead</th></tr></thead><tbody>{% for proposal in page_obj %}<tr><td><a href="{% url 'proposals:detail' workspace.id proposal.pk %}">{{ proposal.title }}</a></td><td>{{ proposal.version }}</td><td>{{ proposal.get_status_display }}</td><td>{{ proposal.lead }}</td></tr>{% endfor %}</tbody></table>
+<nav>{% if page_obj.has_previous %}<a href="{% querystring page=page_obj.previous_page_number %}">Anterior</a>{% endif %} Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} {% if page_obj.has_next %}<a href="{% querystring page=page_obj.next_page_number %}">Siguiente</a>{% endif %}</nav>
+{% endblock %}

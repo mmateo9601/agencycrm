@@ -1,0 +1,5 @@
+{% extends "workspace/base.html" %}
+{% block workspace_content %}<h2 class="h4">Generar nueva versión</h2>
+<p>Selecciona un lead y hasta cinco adjuntos PDF. La campaña debe tener entre uno y cinco servicios activos y un perfil de agencia configurado.</p>
+<form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary">Encolar generación</button></form>
+{% endblock %}

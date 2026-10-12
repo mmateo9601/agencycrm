@@ -71,7 +71,15 @@ def score_lead(context: ExecutionContext) -> dict:
     return run_score(context)
 
 
+def generate_proposal(context: ExecutionContext) -> dict:
+    """Dispatch deterministic document generation without sending or approving."""
+    from apps.proposals.services import run_proposal
+
+    return run_proposal(context)
+
+
 HANDLERS: dict[str, Callable[[ExecutionContext], dict]] = {
+    Job.Kind.GENERATE_PROPOSAL: generate_proposal,
     Job.Kind.SCORE_LEAD: score_lead,
     Job.Kind.ENRICH_COMPANY: enrich_company,
     Job.Kind.CHECK_MOCK_PROVIDERS: check_mock_providers,

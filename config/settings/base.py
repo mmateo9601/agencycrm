@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "apps.jobs",
     "apps.prospecting",
     "apps.scoring",
+    "apps.proposals",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -91,6 +92,11 @@ X_FRAME_OPTIONS = "DENY"
 SECURE_REFERRER_POLICY = "same-origin"
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2_000_000
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2_000_000
+FILE_UPLOAD_HANDLERS = [
+    "apps.proposals.uploads.BoundedAssetUploadHandler",
+    "django.core.files.uploadhandler.MemoryFileUploadHandler",
+    "django.core.files.uploadhandler.TemporaryFileUploadHandler",
+]
 MAILERS = {"default": {"BACKEND": "django.core.mail.backends.console.EmailBackend"}}
 # Outbound messaging remains simulation-only. Places has a separate explicit opt-in.
 OUTREACH_MODE = "simulation"

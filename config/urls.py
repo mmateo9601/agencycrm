@@ -5,6 +5,7 @@ from django.urls import include, path
 from apps.dashboard.views import HomeView, health
 
 urlpatterns = [
+    path("w/<uuid:workspace_id>/proposals/", include("apps.proposals.urls")),
     path("w/<uuid:workspace_id>/scoring/", include("apps.scoring.urls")),
     path("w/<uuid:workspace_id>/enrichment/", include("apps.companies.website_urls")),
     path("w/<uuid:workspace_id>/prospecting/", include("apps.prospecting.urls")),

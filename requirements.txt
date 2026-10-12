@@ -10,6 +10,9 @@ httpx>=0.28,<0.29
 # Phase 5: public network backend API for DNS pinning; bounded HTML parsing.
 httpcore>=1.0.9,<1.1
 beautifulsoup4>=4.13,<5
+# Phase 7: deterministic PDF generation and structural validation of PDF-only assets.
+reportlab>=4.4,<5
+pypdf>=6,<7
 # Development and verification.
 pytest>=8.4,<10
 pytest-django>=4.11,<5

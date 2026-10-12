@@ -1,0 +1,8 @@
+<article>
+<h1>{{ proposal.title }}</h1><p>{{ proposal.snapshot.agency.trading_name }} · Versión {{ proposal.version }}</p>
+<h2>Resumen ejecutivo</h2><p>{{ proposal.executive_summary|linebreaksbr }}</p>
+<h2>Observaciones y contexto</h2><p>{{ proposal.problem_statement|linebreaksbr }}</p>
+<h2>Solución recomendada</h2><p>{{ proposal.recommended_solution|linebreaksbr }}</p>
+<h2>Próximos pasos</h2><p>{{ proposal.next_steps|linebreaksbr }}</p>
+{% if proposal.snapshot.agency.proposal_footer %}<footer>{{ proposal.snapshot.agency.proposal_footer|linebreaksbr }}</footer>{% endif %}
+</article>

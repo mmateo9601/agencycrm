@@ -1,9 +1,9 @@
-# AgencyCRM — FASE 6 · Scoring y oportunidades
+# AgencyCRM — FASE 7 · Propuestas y documentos
 
 Base local de AgencyCRM siguiendo `IMPLEMENTATION_PLAYBOOK_AGENCYCRM.md`.
-Implementadas FASE 0 a FASE 6: base Django, CRM, cola local, prospección mock,
-CSV, Google Places, enriquecimiento web y scoring explicable.
-Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 7.
+Implementadas FASE 0 a FASE 7: base Django, CRM, cola local, prospección mock,
+CSV, Google Places, enriquecimiento web, scoring y propuestas con PDF.
+Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 8.
 
 ## Instalación (PowerShell)
 
@@ -95,8 +95,8 @@ reprograma, incluso después de un reintento. Cambiar tipo, payload, prioridad o
 presupuesto con esa clave produce un error.
 
 Los tipos de trabajo del playbook están declarados. Se ejecutan el diagnóstico
-y `RUN_SEARCH_ITEM`, `ENRICH_COMPANY` y `SCORE_LEAD`; los demás handlers llegarán en sus fases.
-Propuestas y outreach llegarán en sus fases. Las comprobaciones de elegibilidad
+y `RUN_SEARCH_ITEM`, `ENRICH_COMPANY`, `SCORE_LEAD` y `GENERATE_PROPOSAL`.
+Outreach llegará en su fase. Las comprobaciones de elegibilidad
 y consentimiento pertenecen a la futura fase de outreach; no existe un handler
 de envío que permita saltárselas.
 
@@ -409,6 +409,81 @@ Migraciones:
 - `crm/0002_lead_current_score_run_opportunity_scoring_run`: puntero al score
   activo y vínculo de oportunidades con su ejecución; preserva los datos existentes.
 
+## Uso de FASE 7
+
+Configurar `AgencyProfile` y de uno a cinco servicios activos en la campaña.
+Abrir **Propuestas → Generar propuesta**, seleccionar lead, proveedor y hasta
+cinco adjuntos. El POST con CSRF encola `GENERATE_PROPOSAL` en el worker existente:
+
+```powershell
+python manage.py run_worker --kinds GENERATE_PROPOSAL
+```
+
+La opción predeterminada es **Plantilla determinista**: texto generado localmente
+con Django Templates a partir de agencia, empresa, servicios de campaña y hasta
+cinco oportunidades activas. No inventa importes ni promete resultados; alcance,
+calendario y presupuesto quedan para la reunión. **IA simulada** ejecuta
+`MockAIProvider` sin red y etiqueta el texto como demostración. El contrato
+`AIProvider` queda preparado para una fase futura; no existe proveedor IA real.
+
+La generación congela un snapshot acotado y la versión de plantilla `proposal-v1`.
+ReportLab produce el PDF fuera de transacciones, con fuentes locales, texto escapado,
+márgenes A4 y paginación. Texto HTML de fuentes externas se trata como texto;
+no se ejecuta ni se descargan imágenes o recursos remotos. Glifos no soportados
+por la fuente se sustituyen por `?`. La vista HTML imprimible y el PDF excluyen
+`internal_notes`. La entrega incluye validación estructural y revisión visual de
+un PDF ficticio de dos páginas con contenido largo.
+
+Cada propuesta tiene UUID, versión por lead y clave de idempotencia por workspace.
+Repetir el job devuelve la misma versión sin repetir archivos ni adjuntos.
+Generar una nueva versión conserva las anteriores y su aprobación histórica,
+marcando SUPERSEDED las anteriores que todavía no figuren como SENT. La propuesta
+generada es inmutable: para corregir contenido, actualizar los datos fuente y
+generar otra versión. La UI lista todas las versiones con paginación.
+
+**Revisión y aprobación:** un rol con escritura confirma GENERATED → REVIEWED;
+OWNER/ADMIN confirma REVIEWED → APPROVED. La revisión usa la versión y adjuntos
+mostrados; cambios concurrentes se rechazan mediante revisión incremental.
+Se comprueba integridad de PDF y adjuntos antes de aprobar y se registra actor,
+fecha y auditoría. Una propuesta sustituida no es elegible. `require_approved`
+y el service de estados rechazan registrar SENT sin aprobación; este contrato
+servirá al futuro flujo de outreach. La UI no ofrece envíos ni registra SENT.
+Aprobar no cambia el estado del lead ni contacta a nadie.
+
+**Activos y adjuntos:** OWNER/ADMIN sube PDFs estáticos en **Activos comerciales**.
+Tipos: presentación de agencia, caso de estudio, tarifas, folleto u otro.
+Se validan extensión, MIME, cabecera y estructura con pypdf; se rechazan cifrado,
+formularios, adjuntos embebidos, acciones/enlaces activos y PDFs dañados. Máximo
+1,5 MB y 100 páginas; el límite se aplica durante la recepción de chunks y de
+nuevo en el service. Solo se recibe un archivo por subida. El límite general de
+archivos permanece en 2 MB, compatible con la importación CSV.
+
+Los activos predeterminados se preseleccionan al generar; el usuario puede elegir
+otros activos activos del mismo espacio. Las relaciones `ProposalAttachment`
+quedan protegidas. Archivar un activo impide adjuntarlo a nuevas propuestas y
+conserva su archivo para propuestas históricas. Para reemplazarlo se sube otro.
+PPTX y generación dinámica de presentaciones se aplazan; las presentaciones
+corporativas de esta fase se suben como PDF.
+
+Los archivos se almacenan con nombres aleatorios bajo
+`MEDIA_ROOT/proposals/<workspace>/<proposal>/` y `sales_assets/<workspace>/<asset>/`.
+No hay ruta pública de media. Cada descarga autentica, verifica el workspace,
+la ruta esperada y SHA-256 antes de abrir el archivo; devuelve attachment y
+`Cache-Control: private, no-store`. Nunca se utiliza un nombre o ruta del usuario
+para resolver un archivo local. VIEWER puede consultar y descargar documentos
+de sus espacios, pero no generar, revisar, aprobar o subir activos.
+
+Versiones, adjuntos y auditoría se confirman en una transacción; si falla, se
+elimina el archivo recién creado. DB y filesystem no ofrecen una transacción
+distribuida: una interrupción abrupta puede dejar archivos huérfanos sin acceso
+desde la aplicación; limpieza y retención operativa se aplazan a hardening.
+Los backups futuros deben incluir SQLite y media. No hay envíos, mensajes,
+elegibilidad comercial ni funcionalidades de FASE 8.
+
+Migración `proposals/0001_initial`: Proposal, SalesAsset y ProposalAttachment,
+relaciones protegidas, unicidad por lead/versión y workspace/clave, límite de
+tamaño, estados válidos y requisito de aprobación para APPROVED/SENT.
+
 ## Estructura y decisiones
 
 - `config/settings/base.py`: configuración común, autenticación DRF por sesión,
@@ -509,6 +584,8 @@ validadas para reproducir esta entrega.
 | httpx 0.28.x | HTTP de Places y webs con timeouts y transportes sustituibles en tests |
 | httpcore 1.0.x | Backend público para fijar la conexión a una IP validada y conservar TLS |
 | beautifulsoup4 | Parsing HTML acotado y extracción sin ejecutar JavaScript |
+| reportlab 4.x | Generación local de propuestas PDF A4 con fuentes y paginación |
+| pypdf 6.x | Validación estructural de PDFs/activos y pruebas de apertura y texto |
 | pytest / pytest-django | Pruebas y bases de datos de test aisladas |
 | factory-boy | Datos ficticios reproducibles de test |
 | coverage | Medición de cobertura (umbral 80%) |
@@ -516,7 +593,8 @@ validadas para reproducir esta entrega.
 
 El lock incluye las dependencias transitivas de estas herramientas. El worker usa
 solo Django y la biblioteca estándar para la cola; las integraciones usan los
-clientes y parsers indicados. La generación documental se aplaza a su fase.
+clientes y parsers indicados. Pillow y charset-normalizer llegan como dependencias
+transitivas de ReportLab; no se habilitan uploads de logos ni imágenes.
 Bootstrap es el único recurso frontend externo vendorizado; se
 copió de una distribución 5.3.2 ya disponible localmente conservando su cabecera.
 

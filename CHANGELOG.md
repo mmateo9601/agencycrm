@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.0 — 2026-10-12 · FASE 7
+
+- Proposal, SalesAsset y ProposalAttachment con migración inicial, UUID,
+  claves idempotentes y versiones preservadas con snapshots inmutables.
+- Plantillas deterministas, contrato AIProvider y mock local etiquetado; generación
+  GENERATE_PROPOSAL en el worker, PDF ReportLab y vista imprimible con autoescape.
+- Revisión explícita y aprobación OWNER/ADMIN con control de revisión, integridad,
+  auditoría y contrato de estados que bloquea SENT sin aprobación.
+- Activos PDF privados validados con pypdf, límites de recepción/tamaño, archivado,
+  adjuntos por workspace y descargas autenticadas con verificación SHA-256.
+- Compensación de archivos ante rollback, pruebas sin red y revisión visual PDF.
+  Sin IA real, PPTX, envíos ni funcionalidades de FASE 8.
+
 ## 0.6.0 — 2026-10-12 · FASE 6
 
 - ScoringRule configurable y versionada por workspace, nueve reglas predeterminadas

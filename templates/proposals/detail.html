@@ -1,0 +1,12 @@
+{% extends "workspace/base.html" %}
+{% block workspace_content %}
+<p><a href="{% url 'proposals:list' workspace.id %}">Propuestas</a> · <a href="{% url 'proposals:print' workspace.id proposal.pk %}">Vista imprimible</a> · <a href="{% url 'proposals:download' workspace.id proposal.pk %}">Descargar PDF</a></p>
+<p>Estado: {{ proposal.get_status_display }} · Origen: {{ proposal.get_generated_by_display }} · {{ proposal.generated_model }}</p>
+{% if form.errors %}<div class="alert alert-danger">{{ form.errors }}</div>{% endif %}
+{% if proposal.status == 'GENERATED' and can_write %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="REVIEWED"><input type="hidden" name="expected_revision" value="{{ proposal.revision }}"><button class="btn btn-outline-primary">Confirmar revisión del contenido y adjuntos</button></form>{% endif %}
+{% if proposal.status == 'REVIEWED' and can_delete %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="APPROVED"><input type="hidden" name="expected_revision" value="{{ proposal.revision }}"><button class="btn btn-primary">Aprobar esta versión</button></form>{% endif %}
+{% if proposal.approved_at %}<p>Aprobación: {{ proposal.approved_by|default:'Usuario eliminado' }} · {{ proposal.approved_at }}</p>{% endif %}
+<p>Para modificar el contenido, genera una nueva versión. Aprobar conserva esta versión y sus adjuntos; no envía mensajes.</p>
+<section class="card card-body my-3">{% include "proposals/body.html" %}</section>
+<h2 class="h5">Adjuntos de esta versión</h2><ul>{% for attachment in proposal.attachments.all %}<li><a href="{% url 'proposals:asset_download' workspace.id attachment.asset_id %}">{{ attachment.asset.name }}</a></li>{% empty %}<li>Sin adjuntos.</li>{% endfor %}</ul>
+{% endblock %}

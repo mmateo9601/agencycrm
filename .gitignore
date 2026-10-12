@@ -17,3 +17,4 @@ coverage.xml
 *.worker.lock
 .idea/
 .vscode/
+tmp/

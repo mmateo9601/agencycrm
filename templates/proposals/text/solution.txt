@@ -1,0 +1,2 @@
+{% autoescape off %}{% for service in services %}{{ service.name }}: {{ service.pitch }}
+{% endfor %}El alcance, calendario y presupuesto se acordarán después de la reunión inicial.{% endautoescape %}

@@ -13,6 +13,23 @@ SCENARIOS = [
 
 def validate_payload(kind: str, payload: dict) -> dict:
     """Accept explicit schemas only; resource IDs are separately authorized on enqueue."""
+    if kind == Job.Kind.GENERATE_PROPOSAL:
+        try:
+            if (
+                not isinstance(payload, dict)
+                or set(payload) != {"lead_id", "provider", "asset_ids"}
+                or payload["provider"] not in {"template", "mock"}
+                or not isinstance(payload["asset_ids"], list)
+                or len(payload["asset_ids"]) > 5
+            ):
+                raise ValueError
+            return {
+                "lead_id": str(UUID(str(payload["lead_id"]))),
+                "provider": payload["provider"],
+                "asset_ids": sorted({str(UUID(str(pk))) for pk in payload["asset_ids"]}),
+            }
+        except (ValueError, TypeError) as error:
+            raise ValidationError("Parámetros de generación de propuesta no válidos.") from error
     if kind == Job.Kind.SCORE_LEAD:
         if not isinstance(payload, dict) or set(payload) != {"lead_id"}:
             raise ValidationError("El scoring requiere únicamente lead_id.")

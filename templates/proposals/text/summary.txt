@@ -1,0 +1,2 @@
+{% autoescape off %}{{ agency.trading_name }} presenta a {{ company.name }} una propuesta inicial para la campaña {{ campaign.name }}.
+{{ agency.value_proposition }}{% endautoescape %}

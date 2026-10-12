@@ -15,6 +15,7 @@
 {% if resource.key == 'leads' %}
 <section class="card card-body mb-3"><h3 class="h5">Score actual: {{ object.score }}/100</h3>
 <p><a href="{% url 'scoring:lead' workspace.id object.pk %}">Calcular / consultar histórico y desglose</a></p>
+<p><a href="{% url 'proposals:list' workspace.id %}">Consultar / generar propuestas</a></p>
 <ul>{% for item in score_items %}<li>{{ item.explanation }}: {{ item.points }} · {{ item.evidence }}</li>{% empty %}<li>Sin cálculo registrado.</li>{% endfor %}</ul>
 <p class="text-secondary">La puntuación no autoriza contacto ni cambia el estado comercial.</p></section>
 {% endif %}

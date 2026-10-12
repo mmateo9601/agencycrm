@@ -1,0 +1,4 @@
+{% autoescape off %}1. Revisar los objetivos y confirmar las observaciones con el negocio.
+2. Acordar alcance, entregables, calendario y presupuesto.
+3. Aprobar la propuesta antes de iniciar cualquier trabajo.
+{% if agency.meeting_url %}Solicitud de reunión: {{ agency.meeting_url }}{% endif %}{% endautoescape %}

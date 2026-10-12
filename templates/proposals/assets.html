@@ -1,0 +1,7 @@
+{% extends "workspace/base.html" %}
+{% block workspace_content %}<h2 class="h4">Activos comerciales</h2>
+<p>PDF estáticos sin funciones activas, máximo 1,5 MB. Los archivos se conservan con sus propuestas; para reemplazarlos sube un nuevo activo y archiva el anterior.</p>
+{% if can_delete %}<form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary">Subir activo</button></form>{% endif %}
+<table class="table"><thead><tr><th>Activo</th><th>Tipo</th><th>Predeterminado</th><th>Estado</th><th></th></tr></thead><tbody>{% for asset in page_obj %}<tr><td><a href="{% url 'proposals:asset_download' workspace.id asset.pk %}">{{ asset.name }}</a></td><td>{{ asset.get_asset_type_display }}</td><td>{{ asset.is_default|yesno:'Sí,No' }}</td><td>{{ asset.is_active|yesno:'Activo,Archivado' }}</td><td>{% if can_delete and asset.is_active %}<form method="post" action="{% url 'proposals:archive_asset' workspace.id asset.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Archivar</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table>
+<nav>{% if page_obj.has_previous %}<a href="{% querystring page=page_obj.previous_page_number %}">Anterior</a>{% endif %} Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} {% if page_obj.has_next %}<a href="{% querystring page=page_obj.next_page_number %}">Siguiente</a>{% endif %}</nav>
+{% endblock %}
