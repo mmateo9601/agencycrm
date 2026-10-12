@@ -14,7 +14,7 @@ from apps.outreach.settings import current_settings
 
 from .models import SuppressionEntry
 
-POLICY_VERSION = "outreach-v2"
+POLICY_VERSION = "outreach-v3"
 AUTOMATED = {"EMAIL", "WHATSAPP"}
 REASON_LABELS = {
     "WORKSPACE_INACTIVE": "Espacio de trabajo inactivo.",
@@ -33,6 +33,7 @@ REASON_LABELS = {
     "LIVE_PROVIDER_DISABLED": "Modo/proveedor no habilitado o falta doble activación del email.",
     "EMAIL_CONNECTION_INVALID": "Conexión SMTP desactivada, incompleta o distinta de la aprobada.",
     "DELIVERY_UNCERTAIN": "Entrega pendiente de reconciliación; no se permite reenviar.",
+    "WHATSAPP_CONNECTION_INVALID": "Conexión o plantilla WhatsApp no disponibles o modificadas.",
     "CHANNEL_DISABLED": "El canal no está habilitado en la campaña.",
     "NOT_DUE": "Todavía no ha llegado la fecha programada.",
     "ATTEMPT_LIMIT": "Se alcanzó el máximo de intentos para esta empresa/canal.",
@@ -84,6 +85,15 @@ def approval_digest(message) -> str:
             connection_revision=message.connection_revision,
             sender=message.sender_email,
             sender_name=message.sender_name,
+        )
+    if message.provider == "cloud":
+        data.update(
+            provider="cloud",
+            connection=str(message.whatsapp_connection_id),
+            connection_revision=message.connection_revision,
+            template=str(message.whatsapp_template_id),
+            snapshot=message.template_snapshot,
+            parameters=message.template_parameters,
         )
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
@@ -164,10 +174,15 @@ def eligibility(message, *, now=None, reserved: bool = False) -> tuple[str, list
     if config.is_paused:
         reasons.append("EMERGENCY_PAUSE")
     real_email = message.channel == "EMAIL" and message.provider == "smtp"
+    real_whatsapp = message.channel == "WHATSAPP" and message.provider == "cloud"
     live_allowed = (
-        real_email
+        (
+            real_email
+            and settings.EMAIL_PROVIDER == "smtp"
+            or real_whatsapp
+            and settings.WHATSAPP_PROVIDER == "cloud"
+        )
         and settings.OUTREACH_MODE == "live"
-        and settings.EMAIL_PROVIDER == "smtp"
         and config.live_mode_enabled
     )
     simulation_allowed = settings.OUTREACH_MODE == "simulation" and (
@@ -184,6 +199,11 @@ def eligibility(message, *, now=None, reserved: bool = False) -> tuple[str, list
 
         if not message_connection_ready(message):
             reasons.append("EMAIL_CONNECTION_INVALID")
+    if real_whatsapp:
+        from apps.outreach.whatsapp_selectors import message_connection_ready as cloud_ready
+
+        if not cloud_ready(message):
+            reasons.append("WHATSAPP_CONNECTION_INVALID")
     if message.status == "UNKNOWN":
         reasons.append("DELIVERY_UNCERTAIN")
     channel = lead.campaign.channels.filter(

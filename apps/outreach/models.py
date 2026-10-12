@@ -9,6 +9,9 @@ from apps.campaigns.models import CampaignChannel
 from common.models import AppendOnlyModel, WorkspaceModel, limited_metadata
 
 from .email_models import EmailConnection as EmailConnection
+from .whatsapp_models import InboundWhatsAppMessage as InboundWhatsAppMessage
+from .whatsapp_models import WhatsAppConnection as WhatsAppConnection
+from .whatsapp_models import WhatsAppTemplate as WhatsAppTemplate
 
 
 class OutreachSettings(WorkspaceModel):
@@ -87,7 +90,17 @@ class OutreachMessage(WorkspaceModel):
         max_length=20, choices=Status.choices, default=Status.DRAFT, editable=False
     )
     provider = models.CharField(max_length=10, default="mock", editable=False)
-    provider_message_id = models.CharField(max_length=100, blank=True, editable=False)
+    provider_message_id = models.CharField(max_length=400, blank=True, editable=False)
+    whatsapp_connection = models.ForeignKey(
+        WhatsAppConnection, on_delete=models.PROTECT, null=True, blank=True, editable=False
+    )
+    whatsapp_template = models.ForeignKey(
+        WhatsAppTemplate, on_delete=models.PROTECT, null=True, blank=True, editable=False
+    )
+    template_parameters = models.JSONField(default=list, blank=True, editable=False)
+    template_snapshot = models.JSONField(
+        default=dict, blank=True, editable=False, validators=[limited_metadata]
+    )
     email_connection = models.ForeignKey(
         EmailConnection, on_delete=models.PROTECT, null=True, blank=True, editable=False
     )
@@ -134,7 +147,22 @@ class OutreachMessage(WorkspaceModel):
                 fields=["workspace", "idempotency_key"], name="unique_message_key"
             ),
             models.CheckConstraint(
-                condition=models.Q(provider__in=["mock", "manual", "smtp"]), name="message_provider"
+                condition=models.Q(provider__in=["mock", "manual", "smtp", "cloud"]),
+                name="message_provider",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(provider="cloud")
+                | models.Q(
+                    channel="WHATSAPP",
+                    whatsapp_connection__isnull=False,
+                    whatsapp_template__isnull=False,
+                ),
+                name="message_whatsapp_identity",
+            ),
+            models.UniqueConstraint(
+                fields=["workspace", "provider", "provider_message_id"],
+                condition=models.Q(provider="cloud") & ~models.Q(provider_message_id=""),
+                name="unique_cloud_receipt",
             ),
             models.CheckConstraint(
                 condition=~models.Q(provider="smtp")
@@ -191,6 +219,11 @@ class OutreachMessage(WorkspaceModel):
             raise ValidationError("La propuesta pertenece a otro lead.")
         if self.contact_id and self.contact.company_id != self.lead.company_id:
             raise ValidationError("El contacto pertenece a otra empresa.")
+        if (
+            self.whatsapp_template_id
+            and self.whatsapp_template.connection_id != self.whatsapp_connection_id
+        ):
+            raise ValidationError("La plantilla pertenece a otra conexión.")
         if self.job_id and (
             self.job.workspace_id != self.workspace_id or self.job.kind != "SEND_OUTREACH"
         ):
@@ -247,7 +280,7 @@ class MessageAttachment(AppendOnlyModel, WorkspaceModel):
 class MessageEvent(AppendOnlyModel, WorkspaceModel):
     message = models.ForeignKey(OutreachMessage, on_delete=models.PROTECT, related_name="events")
     event_type = models.CharField(max_length=30)
-    provider_event_id = models.CharField(max_length=100)
+    provider_event_id = models.CharField(max_length=400)
     occurred_at = models.DateTimeField(default=timezone.now)
     payload = models.JSONField(default=dict, blank=True, validators=[limited_metadata])
 

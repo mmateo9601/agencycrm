@@ -22,7 +22,14 @@ from .services import finish_domain, lock_settings, record_smtp_receipt
 
 
 def recover_email(
-    *, user: User, workspace_id: UUID, pk: UUID, action: str, evidence: str, confirmed: bool
+    *,
+    user: User,
+    workspace_id: UUID,
+    pk: UUID,
+    action: str,
+    evidence: str,
+    confirmed: bool,
+    provider_message_id: str = "",
 ) -> OutreachMessage:
     """Record verified server outcome or retry a confirmed failure, never an uncertain one."""
     workspace_access(user=user, workspace_id=workspace_id, delete=True)
@@ -31,10 +38,14 @@ def recover_email(
     with WorkerLock(), transaction.atomic():
         workspace = workspace_access(user=user, workspace_id=workspace_id, delete=True)
         message = message_for_user(user=user, workspace_id=workspace_id, pk=pk)
-        if message.provider != "smtp" or not message.job_id:
-            raise ValidationError("Solo se reconcilian mensajes SMTP con trabajo asociado.")
+        if message.provider not in {"smtp", "cloud"} or not message.job_id:
+            raise ValidationError("Solo se reconcilian mensajes reales con trabajo asociado.")
         job = Job.objects.get(pk=message.job_id, workspace_id=workspace_id)
-        if action == "sync" and message.status == "SENT" and job.status in {"FAILED", "SUCCEEDED"}:
+        if (
+            action == "sync"
+            and message.status in {"SENT", "DELIVERED", "READ", "REPLIED"}
+            and job.status in {"FAILED", "SUCCEEDED"}
+        ):
             finish_domain(
                 message, user, simulated=False, contacted_at=message.sent_at, proposal_actor=user
             )
@@ -53,7 +64,15 @@ def recover_email(
                     sender_email=message.sender_email,
                 )
             )
-            record_smtp_receipt(message, user, receipt)
+            if message.provider == "cloud":
+                from .whatsapp_events import record_cloud_receipt, valid_provider_id
+
+                if not valid_provider_id(provider_message_id):
+                    raise ValidationError("Indica el WAMID confirmado en Meta.")
+                receipt = provider_message_id
+                record_cloud_receipt(message, user, receipt)
+            else:
+                record_smtp_receipt(message, user, receipt)
             try:
                 with transaction.atomic():
                     finish_domain(
@@ -73,8 +92,15 @@ def recover_email(
                 finished_at=timezone.now(),
                 result={"message_id": str(pk), "receipt": receipt, "reconciled": True},
             )
-        elif (action == "not_accepted" and message.status == "UNKNOWN") or (
-            action == "retry" and message.status == "FAILED" and not message.transport_started_at
+        elif (
+            action == "not_accepted"
+            and message.status == "UNKNOWN"
+            and not message.provider_message_id
+        ) or (
+            action == "retry"
+            and message.status == "FAILED"
+            and not message.transport_started_at
+            and not message.provider_message_id
         ):
             message.status = "FAILED"
             decision = evaluate_message(message, user)
@@ -102,7 +128,9 @@ def recover_email(
         record_event(
             actor=user,
             obj=message,
-            action="EMAIL_DELIVERY_RECONCILED",
+            action="WHATSAPP_DELIVERY_RECONCILED"
+            if message.provider == "cloud"
+            else "EMAIL_DELIVERY_RECONCILED",
             metadata={
                 "outcome": action,
                 "evidence_sha256": hashlib.sha256(evidence.encode()).hexdigest(),

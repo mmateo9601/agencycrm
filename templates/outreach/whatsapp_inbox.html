@@ -1,0 +1,3 @@
+{% extends "workspace/base.html" %}{% block workspace_content %}<h2 class="h4">WhatsApp recibido</h2>
+<p>Contenido de negocio limitado; no se descargan documentos entrantes ni se envían respuestas automáticamente.</p>
+{% for item in page_obj %}<article class="card card-body mb-3"><p>{{ item.received_at }} · {{ item.sender_e164 }} · {{ item.message_type }}</p><div>{{ item.body_text|linebreaksbr }}</div>{% if item.reply_to_id %}<a href="{% url 'outreach:message' workspace.id item.reply_to_id %}">Mensaje de origen</a>{% endif %}</article>{% empty %}<p>Sin mensajes recibidos.</p>{% endfor %}{% include 'outreach/pagination.html' %}{% endblock %}

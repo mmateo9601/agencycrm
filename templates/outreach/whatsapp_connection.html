@@ -1,0 +1,16 @@
+{% extends "workspace/base.html" %}{% block workspace_content %}
+<h2 class="h4">WhatsApp Business</h2>
+<p>Configuración local: {{ configured|yesno:'completa,incompleta' }}. Conexión autorizada vigente: {{ ready|yesno:'sí,no' }}. Este estado no prueba credenciales ni aprobación remota.</p>
+{% if connection %}<p>Phone number ID: {{ connection.phone_number_id }} · WABA: {{ connection.waba_id }} · Graph: {{ connection.api_version }}</p>{% endif %}
+<p>Modo global real: {{ global_live|yesno:'activo,inactivo' }}. Cloud seleccionado: {{ cloud_selected|yesno:'sí,no' }}. Workspace permite envío real: {{ config.live_mode_enabled|yesno:'sí,no' }}.</p>
+<p>Callback: <code>{{ callback_path }}</code>. Recepción activada: {{ webhook_enabled|yesno:'sí,no' }}. La configuración pública HTTPS y suscripción en Meta corresponden al operador.</p>
+<p>Solo se envían plantillas aprobadas. Un header de documento transmite el PDF principal de la propuesta; los activos de agencia quedan como referencias locales. Los enlaces pueden formar parte de parámetros de texto, sin fetch remoto de URLs.</p>
+{% if can_delete %}
+<form method="post" class="card card-body my-3">{% csrf_token %}<input type="hidden" name="action" value="connection">{{ form.as_p }}<button class="btn btn-primary">Guardar autorización</button></form>
+<form method="post" class="card card-body my-3">{% csrf_token %}<input type="hidden" name="action" value="live">{{ live_form.as_p }}<button class="btn btn-warning">Guardar permiso de envío real</button></form>
+<h3 class="h5">Registrar plantilla existente en Meta</h3><p>Copia el texto exacto aprobado. Parámetros consecutivos: {% verbatim %}{{1}}, {{2}}{% endverbatim %}. No se crea ni aprueba una plantilla remotamente.</p>
+<form method="post">{% csrf_token %}<input type="hidden" name="action" value="template">{{ template_form.as_p }}<button class="btn btn-primary">Registrar plantilla</button></form>
+{% endif %}
+<h3 class="h5 mt-3">Plantillas</h3><ul>{% for item in templates %}<li>{{ item }} · {{ item.category }} · {{ item.is_active|yesno:'activa,desactivada' }}{% if can_delete and item.is_active %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="disable_template"><input type="hidden" name="template_id" value="{{ item.id }}"><button class="btn btn-sm btn-outline-danger">Desactivar</button></form>{% endif %}</li>{% empty %}<li>No hay plantillas registradas.</li>{% endfor %}</ul>
+<a href="{% url 'outreach:whatsapp_inbox' workspace.id %}">Mensajes recibidos</a>
+{% endblock %}

@@ -21,7 +21,7 @@ def sync_job(job: Job) -> None:
         workspace_id=job.workspace_id, job=job, status__in=["QUEUED", "SENDING"]
     ).first()
     if message:
-        if message.provider == "smtp" and message.transport_started_at:
+        if message.provider in {"smtp", "cloud"} and message.transport_started_at:
             from .services import delivery_unknown
 
             delivery_unknown(message, job.created_by)

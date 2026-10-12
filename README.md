@@ -1,10 +1,12 @@
-# AgencyCRM — FASE 9 · Email SMTP
+# AgencyCRM — FASE 10 · WhatsApp Business Cloud
 
 Base local de AgencyCRM siguiendo `IMPLEMENTATION_PLAYBOOK_AGENCYCRM.md`.
-Implementadas FASE 0 a FASE 9: base Django, CRM, cola local, prospección mock,
+Implementadas FASE 0 a FASE 10: base Django, CRM, cola local, prospección mock,
 CSV, Google Places, enriquecimiento web, scoring, propuestas, contacto simulado
-y backend opcional de email SMTP con TLS.
-Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 10.
+y backends opcionales de email SMTP y WhatsApp Cloud API.
+Python **3.14**, Django 6.1.x y DRF 3.18.x. No se ha avanzado a FASE 11.
+WhatsApp está verificado con HTTP mocks; el ensayo real controlado queda pendiente
+de configuración y autorización del operador.
 
 ## Instalación (PowerShell)
 
@@ -640,7 +642,7 @@ SMTP no devuelve un identificador de mensaje/thread portable del servidor: el ca
 y clave, también visible en la preview para comprobaciones. No es una garantía de
 deduplicación del proveedor. No se implementan threading remoto, seguimiento de
 respuestas, OAuth Gmail ni lectura de buzón. Son capacidades posteriores de otro
-adaptador; esta fase tampoco implementa WhatsApp real de FASE 10.
+adaptador. WhatsApp Cloud se incorpora en FASE 10, descrita más abajo.
 
 La conexión conserva únicamente identidad, revisión, autorización y una huella HMAC
 de la configuración, ligada a `SECRET_KEY`; no conserva password/access/refresh tokens.
@@ -648,7 +650,8 @@ Rotar credenciales, SECRET_KEY o configuración exige volver a autorizar conexi�
 preparar/aprobar nuevos mensajes. No copiar los secretos a referencias de comprobación.
 En simulation con EMAIL_PROVIDER=mock, aun con permiso live del workspace, solo se
 utiliza el mock. Con configuraciones incompatibles se bloquea; no hay fallback live.
-WhatsApp requiere simulation/mock; los canales manuales no utilizan transporte.
+WhatsApp en simulation requiere mock; Cloud exige su propia conexión y plantilla
+autorizadas. Los canales manuales no utilizan transporte.
 
 **Fallos y reconciliación:** autenticación/TLS inválidos y rechazo permanente quedan
 FAILED sin reintentos automáticos. Fallos antes de DATA o rechazo SMTP explícito 4xx
@@ -681,6 +684,38 @@ remitente/revisión congelados, reserva de transporte, UNKNOWN y constraints de
 identidad SMTP/proveedor/aprobación; conserva los mensajes y aprobaciones mock previos.
 Las pruebas sustituyen **SMTP/SMTP_SSL**, no HTTP (este backend no usa HTTP), y bloquean
 globalmente DNS/sockets. No se ha realizado ningún login ni envío SMTP externo.
+
+## Uso de FASE 10 — WhatsApp Business Cloud
+
+Configuración y ensayo controlado: [docs/WHATSAPP.md](docs/WHATSAPP.md).
+
+- Backend con `httpx` ya instalado, token/app secret/verify token exclusivamente en
+  entorno y versión Graph elegida expresamente por el operador. Instalación en mock;
+  no se ha modificado ni activado tu `.env` ni realizado llamadas a Meta.
+- **WhatsApp Business** permite autorizar un business phone para su workspace,
+  registrar plantilla existente/aprobada en Meta y activar permiso de canales reales.
+  El número no puede compartirse ni reasignarse entre espacios.
+- Preparar WHATSAPP real seleccionando plantilla y parámetros como lista JSON de textos.
+  Contenido, destinatario, plantilla, conexión/revisión y archivos quedan congelados
+  y vinculados a aprobación humana. Solo se envía el PDF principal si tiene header DOCUMENT;
+  activos de agencia quedan como referencias locales y asunto no se transmite.
+- Envío exige OUTREACH_MODE=live, WHATSAPP_PROVIDER=cloud, permiso del workspace,
+  conexión/plantilla vigentes y todas las políticas de FASE 8. Worker de SEND_OUTREACH;
+  ningún HTTP durante transacciones ni desde views.
+- Webhook `/integrations/whatsapp/<workspace_uuid>/webhook/` con verify token para
+  suscripción y firma HMAC del cuerpo crudo en POST. Es una API de máquinas con
+  autenticación propia; sesiones, CSRF y permisos de la UI permanecen activos.
+- Eventos idempotentes y estados de entrega/lectura/fallo sin regresiones. Inbox
+  con texto acotado/escapado y contexto de respuesta solo dentro del workspace;
+  no descarga media ni envía respuestas o seguimientos automáticos.
+- Recibo incierto queda UNKNOWN sin replay. Un callback firmado puede reconciliar
+  WAMID perdido; revisión manual requiere resultado comprobado en Meta.
+
+Migración `outreach/0003_inboundwhatsappmessage_whatsappconnection_and_more`: conexión,
+plantilla, inbound, snapshots y relaciones, identidad Cloud, unicidad de WAMID y
+ampliación de IDs. Preserva migraciones y datos anteriores. Sin nuevas dependencias.
+La aceptación externa del playbook requiere un ensayo real controlado: queda pendiente
+por falta de configuración/autorización y la restricción de no realizar conexiones externas.
 
 ## Estructura y decisiones
 

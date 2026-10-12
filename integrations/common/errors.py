@@ -19,9 +19,13 @@ class EmailConfigurationError(ProviderPermanentError):
     public_message = "Email real desactivado o configuración SMTP segura incompleta."
 
 
+class WhatsAppConfigurationError(ProviderPermanentError):
+    public_message = "WhatsApp Cloud desactivado o configuración segura incompleta."
+
+
 class ProviderDeliveryUnknownError(ProviderPermanentError):
     public_message = (
-        "Aceptación SMTP incierta. Revisa el servidor antes de resolver; "
+        "Aceptación del proveedor incierta. Revisa el resultado antes de resolver; "
         "no se reenvía automáticamente."
     )
 

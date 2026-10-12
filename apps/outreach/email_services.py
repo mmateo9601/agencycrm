@@ -64,7 +64,11 @@ def set_live_mode(*, user: User, workspace_id: UUID, enabled: bool, expected_rev
     if type(enabled) is not bool:
         raise ValidationError("Estado no válido.")
     if enabled and not connection_ready(connection_for_user(user=user, workspace_id=workspace_id)):
-        raise ValidationError("Autoriza primero una conexión SMTP configurada.")
+        from .whatsapp_selectors import connection_for_user as cloud_connection
+        from .whatsapp_selectors import connection_ready as cloud_ready
+
+        if not cloud_ready(cloud_connection(user=user, workspace_id=workspace_id)):
+            raise ValidationError("Autoriza primero una conexión de email o WhatsApp configurada.")
     config = ensure_settings(workspace, user)
     if (
         not type(config)

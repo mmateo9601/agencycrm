@@ -60,6 +60,14 @@ class SendAttachment:
 
 
 @dataclass(frozen=True)
+class WhatsAppTemplatePayload:
+    name: str
+    language: str
+    parameters: tuple[str, ...] = ()
+    document_header: bool = False
+
+
+@dataclass(frozen=True)
 class SendMessageRequest:
     workspace_id: UUID
     idempotency_key: str
@@ -69,6 +77,8 @@ class SendMessageRequest:
     attachments: tuple[SendAttachment, ...] = ()
     sender_email: str = ""
     sender_name: str = ""
+    whatsapp_template: WhatsAppTemplatePayload | None = None
+    correlation_id: str = ""
 
 
 @dataclass(frozen=True)

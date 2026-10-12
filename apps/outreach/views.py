@@ -66,6 +66,8 @@ class PrepareView(JobsView):
         if form.is_valid():
             data = dict(form.cleaned_data)
             proposal, contact = data.pop("proposal"), data.pop("contact")
+            template = data.pop("whatsapp_template")
+            data["whatsapp_template_id"] = template.pk if template else None
             data["idempotency_key"] = str(data["idempotency_key"])
             try:
                 message = prepare_message(

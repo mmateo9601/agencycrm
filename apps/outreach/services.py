@@ -29,7 +29,14 @@ from integrations.common.errors import (
 from integrations.common.factory import outbound_provider
 
 from .email_selectors import connection_for_user, connection_ready
-from .models import MessageAttachment, MessageEvent, OutreachMessage, OutreachSettings, SalesTask
+from .models import (
+    MessageAttachment,
+    MessageEvent,
+    OutreachMessage,
+    OutreachSettings,
+    SalesTask,
+    WhatsAppTemplate,
+)
 from .selectors import message_for_user
 from .settings import ensure_settings
 
@@ -65,6 +72,9 @@ def prepare_message(
     body_text: str = "",
     scheduled_at=None,
     real_email: bool = False,
+    real_whatsapp: bool = False,
+    whatsapp_template_id: UUID | None = None,
+    template_parameters: list[str] | None = None,
 ) -> OutreachMessage:
     """Prepare immutable text and protected attachment references; never approve automatically."""
     workspace = workspace_access(user=user, workspace_id=workspace_id, write=True)
@@ -81,6 +91,21 @@ def prepare_message(
     if not isinstance(idempotency_key, str) or not 1 <= len(idempotency_key.strip()) <= 100:
         raise ValidationError("Clave no válida.")
     key = idempotency_key.strip()
+    template = None
+    cloud_connection = None
+    if type(real_whatsapp) is not bool or real_email and real_whatsapp:
+        raise ValidationError("Selecciona un único modo real.")
+    if real_whatsapp:
+        template = scoped_record(
+            model=WhatsAppTemplate, user=user, workspace_id=workspace_id, pk=whatsapp_template_id
+        )
+        rendered = template.render_parameters(template_parameters or [])
+        if body_text and body_text != rendered:
+            raise ValidationError("El cuerpo debe coincidir con la plantilla y sus parámetros.")
+        body_text = rendered
+        cloud_connection = template.connection
+    elif whatsapp_template_id or template_parameters:
+        raise ValidationError("Los parámetros de plantilla solo se usan en WhatsApp real.")
     existing = OutreachMessage.objects.filter(workspace=workspace, idempotency_key=key).first()
     subject = subject or proposal.title
     body_text = body_text or (proposal.executive_summary + "\n\n" + proposal.next_steps)[:12000]
@@ -95,6 +120,15 @@ def prepare_message(
             raise ValidationError("La clave identifica otro mensaje.")
         if (existing.provider == "smtp") != real_email:
             raise ValidationError("La clave identifica otro modo de envío.")
+        if (
+            (existing.provider == "cloud") != real_whatsapp
+            or real_whatsapp
+            and (
+                existing.whatsapp_template_id != whatsapp_template_id
+                or existing.template_parameters != (template_parameters or [])
+            )
+        ):
+            raise ValidationError("La clave identifica otra plantilla o modo de envío.")
         return existing
     connection = None
     if type(real_email) is not bool:
@@ -104,6 +138,16 @@ def prepare_message(
         if channel != "EMAIL" or not connection_ready(connection):
             raise ValidationError("Autoriza primero una conexión SMTP válida para este workspace.")
     ensure_settings(workspace, user)
+    if real_whatsapp:
+        from .whatsapp_selectors import connection_ready as cloud_ready
+
+        if (
+            channel != "WHATSAPP"
+            or not cloud_ready(cloud_connection)
+            or not template.is_active
+            or not template.approved_in_meta
+        ):
+            raise ValidationError("WhatsApp requiere conexión y plantilla aprobada vigentes.")
     message = OutreachMessage.objects.create(
         workspace=workspace,
         lead=proposal.lead,
@@ -114,9 +158,32 @@ def prepare_message(
         recipient=recipient_for(proposal.lead, contact, channel),
         subject=subject,
         body_text=body_text,
-        provider="smtp" if real_email else "mock" if channel in AUTOMATED else "manual",
+        provider="cloud"
+        if real_whatsapp
+        else "smtp"
+        if real_email
+        else "mock"
+        if channel in AUTOMATED
+        else "manual",
         email_connection=connection,
-        connection_revision=connection.revision if connection else 0,
+        connection_revision=cloud_connection.revision
+        if cloud_connection
+        else connection.revision
+        if connection
+        else 0,
+        whatsapp_connection=cloud_connection,
+        whatsapp_template=template,
+        template_parameters=template_parameters or [],
+        template_snapshot={
+            "name": template.name,
+            "language": template.language,
+            "category": template.category,
+            "body_template": template.body_template,
+            "document_header": template.document_header,
+            "revision": template.revision,
+        }
+        if template
+        else {},
         sender_email=connection.sender_email if connection else "",
         sender_name=connection.sender_name if connection else "",
         created_by=user,
@@ -240,7 +307,8 @@ def authorize_send(*, user: User, workspace_id: UUID, payload: dict) -> Outreach
     workspace_access(user=user, workspace_id=workspace_id, write=True)
     message = message_for_user(user=user, workspace_id=workspace_id, pk=payload["message_id"])
     if (
-        message.status not in {"APPROVED", "QUEUED", "SENDING", "FAILED", "SENT"}
+        message.status
+        not in {"APPROVED", "QUEUED", "SENDING", "FAILED", "SENT", "DELIVERED", "READ", "REPLIED"}
         or not message.approved_at
     ):
         raise ValidationError("No se puede enviar un mensaje sin aprobación.")
@@ -249,18 +317,26 @@ def authorize_send(*, user: User, workspace_id: UUID, payload: dict) -> Outreach
 
 def delivery_unknown(message, user) -> None:
     """A transport reservation survived without receipt; never infer non-delivery."""
-    OutreachMessage.objects.filter(pk=message.pk, workspace_id=message.workspace_id).update(
+    changed = OutreachMessage.objects.filter(
+        pk=message.pk, workspace_id=message.workspace_id, provider_message_id=""
+    ).update(
         status="UNKNOWN",
         error_code="DELIVERY_UNKNOWN",
         error_message=ProviderDeliveryUnknownError.public_message,
         failed_at=timezone.now(),
     )
+    if not changed:
+        return
     event(message, "DELIVERY_UNKNOWN", f"attempt:{message.send_attempts}")
     record_event(actor=user, obj=message, action="MESSAGE_DELIVERY_UNKNOWN")
 
 
 def read_attachments(message, user) -> tuple[SendAttachment, ...]:
+    if message.provider == "cloud" and not message.template_snapshot.get("document_header"):
+        return ()
     items = list(message.attachments.filter(workspace_id=message.workspace_id).order_by("filename"))
+    if message.provider == "cloud":
+        items = [item for item in items if item.proposal_id == message.proposal_id]
     if len(items) > 6:
         raise ValidationError("Demasiados adjuntos.")
     result = []
@@ -346,8 +422,8 @@ def finish_domain(
             target="CONTACTED",
             reason="Contacto simulado"
             if simulated
-            else "Email aceptado por SMTP"
-            if message.provider == "smtp"
+            else "Mensaje aceptado por el proveedor"
+            if message.provider in {"smtp", "cloud"}
             else "Acción manual confirmada",
             expected_revision=lead.status_revision,
         )
@@ -391,10 +467,11 @@ def send_outreach(context: ExecutionContext) -> dict:
             OutreachMessage.objects.filter(
                 workspace_id=context.workspace_id,
                 job=previous_job,
-                provider="smtp",
+                provider__in=["smtp", "cloud"],
                 transport_started_at__isnull=False,
             )
-            .exclude(status="SENT")
+            .exclude(status__in=["SENT", "DELIVERED", "READ", "REPLIED"])
+            .filter(provider_message_id="")
             .first()
         )
         if stranded:
@@ -412,7 +489,9 @@ def send_outreach(context: ExecutionContext) -> dict:
         )
         if message.job_id != job.pk:
             raise ValidationError("Trabajo no asociado al mensaje.")
-        if message.status == "SENT":
+        if message.status in {"SENT", "DELIVERED", "READ", "REPLIED"} or (
+            message.provider == "cloud" and message.provider_message_id
+        ):
             return {"message_id": str(message.pk), "receipt": message.provider_message_id}
         lock_settings(workspace, job.created_by)
         reserved = message.status == "SENDING"
@@ -449,10 +528,10 @@ def send_outreach(context: ExecutionContext) -> dict:
                 return {"message_id": str(message.pk), "blocked": True}
         provider = (
             outbound_provider(message.channel, message=message)
-            if message.provider == "smtp"
+            if message.provider in {"smtp", "cloud"}
             else outbound_provider(message.channel)
         )
-        if message.provider == "smtp":
+        if message.provider in {"smtp", "cloud"}:
             with transaction.atomic():
                 owned_job(context, token)
                 workspace_access(user=job.created_by, workspace_id=context.workspace_id, write=True)
@@ -465,27 +544,38 @@ def send_outreach(context: ExecutionContext) -> dict:
                     pk=message.pk, workspace_id=context.workspace_id
                 ).update(transport_started_at=timezone.now())
                 message.refresh_from_db()
-        result = provider.send(
-            SendMessageRequest(
-                workspace_id=context.workspace_id,
-                idempotency_key=message.idempotency_key,
-                recipient=message.recipient,
-                body_text=message.body_text,
-                subject=message.subject,
-                attachments=attachments,
-                sender_email=message.sender_email,
-                sender_name=message.sender_name,
-            )
+        request_data = dict(
+            workspace_id=context.workspace_id,
+            idempotency_key=message.idempotency_key,
+            recipient=message.recipient,
+            body_text=message.body_text,
+            subject=message.subject,
+            attachments=attachments,
+            sender_email=message.sender_email,
+            sender_name=message.sender_name,
         )
+        if message.provider == "cloud":
+            from integrations.common.contracts import WhatsAppTemplatePayload
+
+            request_data.update(
+                whatsapp_template=WhatsAppTemplatePayload(
+                    message.template_snapshot["name"],
+                    message.template_snapshot["language"],
+                    tuple(message.template_parameters),
+                    message.template_snapshot["document_header"],
+                ),
+                correlation_id=str(message.pk),
+            )
+        result = provider.send(SendMessageRequest(**request_data))
         if result.simulated != (message.provider == "mock"):
-            if message.provider == "smtp":
+            if message.provider in {"smtp", "cloud"}:
                 raise ProviderDeliveryUnknownError
             raise ProviderPermanentError
     except Exception as error:
         with transaction.atomic():
             owned_job(context, token)
             uncertain = (
-                message.provider == "smtp"
+                message.provider in {"smtp", "cloud"}
                 and message.transport_started_at
                 and (
                     isinstance(error, ProviderDeliveryUnknownError)
@@ -496,7 +586,7 @@ def send_outreach(context: ExecutionContext) -> dict:
                 delivery_unknown(message, job.created_by)
             else:
                 OutreachMessage.objects.filter(
-                    pk=message.pk, workspace_id=context.workspace_id
+                    pk=message.pk, workspace_id=context.workspace_id, provider_message_id=""
                 ).update(
                     status="FAILED",
                     transport_started_at=None,
@@ -511,13 +601,18 @@ def send_outreach(context: ExecutionContext) -> dict:
         if uncertain:
             raise ProviderDeliveryUnknownError from None
         raise
-    if message.provider == "smtp":
+    if message.provider in {"smtp", "cloud"}:
         # Acceptance is a fact even if permissions or policy changed during the network call.
         # Persist it first; recovery must never repeat an accepted submission.
         with transaction.atomic():
             owned_job(context, token)
             message.refresh_from_db()
-            record_smtp_receipt(message, message.created_by, result.provider_message_id)
+            if message.provider == "cloud":
+                from .whatsapp_events import record_cloud_receipt
+
+                record_cloud_receipt(message, message.created_by, result.provider_message_id)
+            else:
+                record_smtp_receipt(message, message.created_by, result.provider_message_id)
         try:
             with transaction.atomic():
                 message.refresh_from_db()

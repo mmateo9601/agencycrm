@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.10.0 — 2026-10-12 · FASE 10
+
+- WhatsAppCloudProvider con HTTP acotado, HTTPS fijo, token por entorno, versión
+  Graph explícita, plantillas posicionales y upload privado del PDF principal.
+- Conexión por workspace y asignación única e histórica de business phone;
+  plantilla/parámetros congelados en aprobación y doble activación live.
+- Webhook de máquinas con HMAC SHA-256 del cuerpo crudo, verificación de suscripción,
+  límites de lote/cuerpo y aislamiento por WABA/phone/destinatario.
+- Eventos idempotentes, estados sin regresiones, inbox básico escapado y transiciones
+  verificadas del CRM; aceptación incierta reconciliable por callback o WAMID comprobado.
+- Redacción de queries de suscripción en logs Django y Retry-After compartido con HTTP dates.
+- Migración aditiva y pruebas HTTP mockeadas con DNS/sockets bloqueados; sin nuevas
+  dependencias ni FASE 11. Ensayo real controlado pendiente de configuración/autorización:
+  no se han realizado conexiones ni envíos a Meta.
+
 ## 0.9.0 — 2026-10-12 · FASE 9
 
 - Backend real seleccionado: SMTP autenticado con STARTTLS/TLS y verificación de

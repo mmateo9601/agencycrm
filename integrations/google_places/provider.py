@@ -1,12 +1,9 @@
 """Google Places API (New). Pure normalized transport; no ORM or domain mutations."""
 
 import json
-import math
 import re
 import time
-from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-from email.utils import parsedate_to_datetime
 
 import httpx
 
@@ -24,6 +21,7 @@ from integrations.common.errors import (
     ProviderTemporaryError,
     ProviderTimeoutError,
 )
+from integrations.common.http import retry_after_seconds as retry_after_seconds
 
 BASE_URL = "https://places.googleapis.com/v1/"
 FIELDS = {
@@ -45,18 +43,6 @@ FIELDS = {
 SEARCH_FIELDS = sorted(set(FIELDS.values()))
 FIELD_MASK = ",".join(f"places.{field}" for field in SEARCH_FIELDS)
 MAX_BYTES = 1_000_000
-
-
-def retry_after_seconds(value: str | None) -> int:
-    """Accept Retry-After seconds or HTTP dates, bounded to the job retry policy."""
-    try:
-        seconds = int(value or "30")
-    except ValueError:
-        try:
-            seconds = math.ceil((parsedate_to_datetime(value) - datetime.now(UTC)).total_seconds())
-        except ValueError, TypeError, OverflowError:
-            seconds = 30
-    return min(86400, max(1, seconds))
 
 
 def _text(value: dict, key: str, maximum: int = 500) -> str:

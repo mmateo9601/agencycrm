@@ -5,7 +5,7 @@
 <p>Este estado comprueba la configuración local; no verifica la conexión ni el login en el servidor.</p>
 {% if connection %}<p>Remitente autorizado: {{ connection.sender_name }} &lt;{{ connection.sender_email }}&gt;</p>{% endif %}
 <p>Modo global real: {{ global_live|yesno:'activo,inactivo' }}. SMTP seleccionado: {{ smtp_selected|yesno:'sí,no' }}. Email real en workspace: {{ config.live_mode_enabled|yesno:'permitido,bloqueado' }}.</p>
-<p>Todos los mensajes necesitan aprobación humana. WhatsApp sigue disponible únicamente en simulación. La pausa de emergencia bloquea nuevos envíos.</p>
+<p>Todos los mensajes necesitan aprobación humana. WhatsApp Cloud requiere su propia conexión y plantilla autorizadas. La pausa de emergencia bloquea nuevos envíos.</p>
 {% if can_delete %}
 <form method="post" class="card card-body my-3">{% csrf_token %}<input type="hidden" name="action" value="connection">{{ form.as_p }}<button class="btn btn-primary">Guardar autorización del remitente</button></form>
 <form method="post" class="card card-body my-3">{% csrf_token %}<input type="hidden" name="action" value="live">{{ live_form.as_p }}<button class="btn btn-warning">Guardar permiso de email real</button></form>

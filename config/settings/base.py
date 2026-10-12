@@ -106,7 +106,16 @@ MAX_EMAILS_PER_DAY = int(os.getenv("MAX_EMAILS_PER_DAY", "25"))
 MAX_WHATSAPP_PER_DAY = int(os.getenv("MAX_WHATSAPP_PER_DAY", "10"))
 CONTACT_COOLDOWN_DAYS = int(os.getenv("CONTACT_COOLDOWN_DAYS", "14"))
 EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "mock").strip().lower()
-WHATSAPP_PROVIDER = AI_PROVIDER = "mock"
+WHATSAPP_PROVIDER = os.getenv("WHATSAPP_PROVIDER", "mock").strip().lower()
+AI_PROVIDER = "mock"
+WHATSAPP_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
+WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "").strip()
+WHATSAPP_WABA_ID = os.getenv("WHATSAPP_WABA_ID", "").strip()
+WHATSAPP_GRAPH_API_VERSION = os.getenv("WHATSAPP_GRAPH_API_VERSION", "").strip()
+WHATSAPP_APP_SECRET = os.getenv("WHATSAPP_APP_SECRET", "")
+WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
+WHATSAPP_WEBHOOK_ENABLED = os.getenv("WHATSAPP_WEBHOOK_ENABLED", "false").lower() == "true"
+WHATSAPP_HTTP_TIMEOUT = float(os.getenv("WHATSAPP_HTTP_TIMEOUT", "15"))
 OUTREACH_SMTP_HOST = os.getenv("OUTREACH_SMTP_HOST", "").strip()
 OUTREACH_SMTP_PORT = int(os.getenv("OUTREACH_SMTP_PORT", "587"))
 OUTREACH_SMTP_USERNAME = os.getenv("OUTREACH_SMTP_USERNAME", "").strip()
@@ -131,10 +140,17 @@ JOB_STALE_AFTER_SECONDS = 900
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {"webhook_query": {"()": "common.logging.WebhookQueryFilter"}},
     "formatters": {"standard": {"format": "{asctime} {levelname} {name}: {message}", "style": "{"}},
     "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "standard"}},
     "root": {"handlers": ["console"], "level": "INFO"},
     "loggers": {
+        "django.server": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "filters": ["webhook_query"],
+            "propagate": False,
+        },
         "httpx": {"handlers": ["console"], "level": "WARNING", "propagate": False},
         "httpcore": {"handlers": ["console"], "level": "WARNING", "propagate": False},
     },

@@ -6,7 +6,7 @@ from apps.companies.models import Contact
 from apps.proposals.models import Proposal
 from common.selectors import scoped_records
 
-from .models import OutreachSettings
+from .models import OutreachSettings, WhatsAppTemplate
 
 
 class PrepareForm(forms.Form):
@@ -30,6 +30,17 @@ class PrepareForm(forms.Form):
         required=False,
         label="Preparar email real con el remitente autorizado; requiere doble activación",
     )
+    real_whatsapp = forms.BooleanField(
+        required=False, label="Preparar WhatsApp real con plantilla aprobada"
+    )
+    whatsapp_template = forms.ModelChoiceField(
+        queryset=WhatsAppTemplate.objects.none(), required=False
+    )
+    template_parameters = forms.JSONField(
+        required=False,
+        initial=list,
+        label='Parámetros de WhatsApp: lista JSON de textos, como ["Empresa", "Servicio"]',
+    )
 
     def __init__(self, *args, user, workspace_id, **kwargs):
         super().__init__(*args, **kwargs)
@@ -41,6 +52,9 @@ class PrepareForm(forms.Form):
         self.fields["contact"].queryset = scoped_records(
             model=Contact, user=user, workspace_id=workspace_id
         )
+        self.fields["whatsapp_template"].queryset = scoped_records(
+            model=WhatsAppTemplate, user=user, workspace_id=workspace_id
+        ).filter(is_active=True, approved_in_meta=True)
 
 
 class ApproveForm(forms.Form):
@@ -72,7 +86,9 @@ class EmailConnectionForm(forms.Form):
 
 
 class LiveModeForm(forms.Form):
-    enabled = forms.BooleanField(required=False, label="Permitir email real en este workspace")
+    enabled = forms.BooleanField(
+        required=False, label="Permitir canales reales autorizados en este workspace"
+    )
     expected_revision = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
 
 
@@ -88,4 +104,29 @@ class RecoveryForm(forms.Form):
     evidence = forms.CharField(
         max_length=500, label="Referencia de la comprobación en el servidor", widget=forms.Textarea
     )
-    confirmed = forms.BooleanField(label="He comprobado el resultado en el servidor SMTP")
+    confirmed = forms.BooleanField(label="He comprobado el resultado en el proveedor")
+    provider_message_id = forms.CharField(
+        required=False, max_length=400, label="WAMID confirmado (solo para WhatsApp incierto)"
+    )
+
+
+class WhatsAppConnectionForm(forms.Form):
+    enabled = forms.BooleanField(required=False, label="Autorizar WhatsApp de este workspace")
+    expected_revision = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
+
+
+class WhatsAppTemplateForm(forms.ModelForm):
+    approved_in_meta = forms.BooleanField(
+        label="He comprobado aprobación y contenido exacto en Meta"
+    )
+
+    class Meta:
+        model = WhatsAppTemplate
+        fields = [
+            "name",
+            "language",
+            "category",
+            "body_template",
+            "document_header",
+            "approved_in_meta",
+        ]

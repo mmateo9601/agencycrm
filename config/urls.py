@@ -3,8 +3,14 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import include, path
 
 from apps.dashboard.views import HomeView, health
+from apps.outreach.whatsapp_webhooks import WhatsAppWebhookView
 
 urlpatterns = [
+    path(
+        "integrations/whatsapp/<uuid:workspace_id>/webhook/",
+        WhatsAppWebhookView.as_view(),
+        name="whatsapp_webhook",
+    ),
     path("w/<uuid:workspace_id>/outreach/", include("apps.outreach.urls")),
     path("w/<uuid:workspace_id>/proposals/", include("apps.proposals.urls")),
     path("w/<uuid:workspace_id>/scoring/", include("apps.scoring.urls")),
