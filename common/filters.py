@@ -3,6 +3,7 @@ from django import forms
 from apps.accounts.models import User
 from apps.campaigns.models import Campaign
 from apps.companies.models import Company
+from apps.compliance.models import ContactEligibilityDecision
 from apps.crm.models import Lead
 from common.selectors import with_related
 
@@ -32,6 +33,15 @@ class RecordFilterForm(forms.Form):
                     required=False,
                 )
         if name == "lead":
+            self.fields["eligibility"] = forms.ChoiceField(
+                label="Última evaluación registrada",
+                required=False,
+                choices=[
+                    ("", "Todas"),
+                    *ContactEligibilityDecision._meta.get_field("decision").choices,
+                    ("NOT_EVALUATED", "Sin evaluación"),
+                ],
+            )
             self.fields["assigned_to"] = forms.ModelChoiceField(
                 label="Responsable",
                 required=False,

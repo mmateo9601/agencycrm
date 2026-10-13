@@ -13,6 +13,14 @@
 <form method="post" action="{% url 'workspace:state' workspace.id resource.key object.pk %}" class="mb-3">{% csrf_token %}<input type="hidden" name="target" value="{{ campaign_target }}"><button class="btn btn-outline-primary" type="submit">{% if campaign_target == 'READY' %}Marcar preparada{% else %}Volver a borrador{% endif %}</button></form>
 {% endif %}
 {% if resource.key == 'leads' %}
+<section class="card card-body mb-3"><h3 class="h5">Última evaluación de contacto registrada</h3>
+{% if eligibility_decision %}
+<p><strong>{{ eligibility_decision.get_decision_display }}</strong> · {{ eligibility_decision.channel }} · {{ eligibility_decision.evaluated_at|date:"d/m/Y H:i" }}</p>
+<ul>{% for reason in eligibility_decision.reason_labels %}<li>{{ reason }}</li>{% endfor %}</ul>
+<p><a href="{% url 'outreach:message' workspace.id eligibility_decision.message_id %}">Consultar mensaje y elegibilidad actual</a></p>
+{% else %}<p>Sin evaluación registrada. Prepara un mensaje para comprobar su elegibilidad.</p>{% endif %}
+<p class="text-secondary">Es una evaluación histórica del último mensaje evaluado, de cualquier canal. No autoriza nuevos contactos: la política se comprueba de nuevo antes de enviar.</p>
+</section>
 <section class="card card-body mb-3"><h3 class="h5">Score actual: {{ object.score }}/100</h3>
 <p><a href="{% url 'scoring:lead' workspace.id object.pk %}">Calcular / consultar histórico y desglose</a></p>
 <p><a href="{% url 'proposals:list' workspace.id %}">Consultar / generar propuestas</a></p>

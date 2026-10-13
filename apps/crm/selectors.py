@@ -1,12 +1,21 @@
 from uuid import UUID
 
-from django.db.models import Exists, Model, OuterRef, Q, QuerySet
+from django.db.models import CharField, Exists, Model, OuterRef, Q, QuerySet, Subquery, Value
+from django.db.models.functions import Coalesce
 
 from apps.accounts.models import User
 from apps.companies.models import Contact
+from apps.compliance.models import ContactEligibilityDecision
 from common.selectors import scoped_records
 
-from .models import Opportunity
+from .models import Lead, Opportunity
+
+
+def eligibility_decisions(lead: Lead) -> QuerySet:
+    """Read recorded decisions for an already authorized lead, scoped to its workspace."""
+    return ContactEligibilityDecision.objects.filter(
+        workspace_id=lead.workspace_id, lead_id=lead.pk
+    ).order_by("-evaluated_at", "-created_at", "-id")
 
 
 def crm_records(*, model: type[Model], user: User, workspace_id: UUID, filters: dict) -> QuerySet:
@@ -31,6 +40,17 @@ def crm_records(*, model: type[Model], user: User, workspace_id: UUID, filters: 
     for field in ("status", "campaign", "company", "assigned_to"):
         if filters.get(field):
             records = records.filter(**{field: filters[field]})
+    if filters.get("eligibility"):
+        latest = ContactEligibilityDecision.objects.filter(
+            workspace_id=workspace_id, lead_id=OuterRef("pk")
+        ).order_by("-evaluated_at", "-created_at", "-id")
+        records = records.annotate(
+            _latest_eligibility=Coalesce(
+                Subquery(latest.values("decision")[:1]),
+                Value("NOT_EVALUATED"),
+                output_field=CharField(),
+            )
+        ).filter(_latest_eligibility=filters["eligibility"])
     for key, lookup in (
         ("city", "company__city__icontains"),
         ("sector", "company__primary_sector__icontains"),

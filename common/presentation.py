@@ -5,6 +5,7 @@ from apps.campaigns.models import Campaign
 from apps.companies.models import Company
 from apps.crm.forms import LeadTransitionForm
 from apps.crm.models import Lead
+from apps.crm.selectors import eligibility_decisions
 from common.pagination import section_page
 
 
@@ -21,6 +22,7 @@ def detail_context(*, obj: models.Model, params) -> dict:
     context = {"detail_fields": fields, "related_sections": []}
     if isinstance(obj, Lead):
         context.update(
+            eligibility_decision=eligibility_decisions(obj).first(),
             score_items=Paginator(
                 obj.score_items.filter(
                     workspace_id=obj.workspace_id, scoring_run_id=obj.current_score_run_id

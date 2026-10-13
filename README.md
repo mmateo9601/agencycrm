@@ -109,6 +109,9 @@ docs/          Guías y referencia del sistema
 
 ## Calidad
 
+La [verificación funcional](docs/FUNCTIONAL_VERIFICATION.md) reúne la matriz de
+integración y los escenarios de instalación limpia, formularios y API comprobados.
+
 Con el entorno virtual activo:
 
 ```powershell

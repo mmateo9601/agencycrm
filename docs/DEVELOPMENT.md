@@ -32,6 +32,15 @@ python -m coverage report
 git diff --check
 ```
 
+Para verificar el arranque funcional desde una SQLite vacía, sin tocar datos locales:
+
+```bash
+python scripts/verify_local_install.py
+```
+
+Aplica migraciones, repite la demo y comprueba sesión/CSRF, dashboard/API,
+health y worker con red bloqueada y archivos temporales.
+
 Para medir cobertura basta ejecutar la variante con `coverage` una vez, en lugar
 de duplicar toda la suite. La configuración está en [pyproject.toml](../pyproject.toml):
 settings de test, rutas, lint y mínimo global del 80 %. pytest usa base aislada,

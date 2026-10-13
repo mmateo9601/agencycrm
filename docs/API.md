@@ -43,13 +43,18 @@ campos arbitrarios. Los listados mantienen el orden estable del modelo.
 | Lista | Filtros permitidos, además de `workspace_id` y `page` |
 |---|---|
 | Empresas | `q`, `city`, `sector`, `active` (`yes`/`no`) |
-| Leads | `q`, `city`, `sector`, `status`, `company`, `campaign`, `assigned_to`, `min_score`, `max_score`, `has_email`, `has_phone`, `has_opportunity`, `archived` |
+| Leads | `q`, `city`, `sector`, `status`, `company`, `campaign`, `assigned_to`, `min_score`, `max_score`, `has_email`, `has_phone`, `has_opportunity`, `eligibility`, `archived` |
 | Campañas | `q`, `status` |
 | Jobs | `status`, `kind` |
 
 Los UUIDs de filtros se resuelven dentro del workspace. `has_email`, `has_phone` y
 `has_opportunity` aceptan `yes`/`no`; `archived` acepta `yes`/`all` y por defecto
 lista leads no archivados. Texto de búsqueda/ciudad/sector: máximo 200 caracteres.
+`eligibility` acepta `ELIGIBLE`, `INELIGIBLE`, `REVIEW_REQUIRED` o `NOT_EVALUATED`.
+Filtra por la última evaluación registrada del lead, de cualquier mensaje/canal,
+ordenada por evaluación, creación y UUID descendentes. Es evidencia histórica,
+no un permiso vigente de envío; la política vuelve a comprobarse antes del contacto.
+No se evalúan ni guardan decisiones al consultar este filtro.
 Score: 0–100; mínimo no puede superar máximo. Estados/tipos usan los enums del
 dominio. Filtros inválidos, desconocidos o repetidos fallan con 400; no devuelven
 un listado sin filtrar como alternativa. Las fichas/acciones solo aceptan

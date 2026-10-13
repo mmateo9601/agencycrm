@@ -35,9 +35,13 @@ usan dominios `.invalid`; no se necesita Google, SMTP, Meta ni una cuenta extern
 
 ## Ejecutar
 
-Validación de este cierre (2026-10-13): 586 tests verdes, cobertura global 96%,
+Validación actual (2026-10-13): 594 tests verdes, cobertura global 96%,
 Django check y Ruff sin errores, sin migraciones pendientes y arranque local
 health/login/admin comprobado. El servidor se detuvo al terminar la prueba.
+
+La [verificación funcional](FUNCTIONAL_VERIFICATION.md) añade el flujo completo
+mediante formularios HTML con CSRF, comprobaciones de páginas OWNER/VIEWER y
+una instalación SQLite limpia reproducible, sin modificar el contrato de este E2E.
 
 ```powershell
 pytest tests/test_acceptance.py

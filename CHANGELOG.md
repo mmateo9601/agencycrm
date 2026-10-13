@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-13 · Verificación funcional e integración local
+
+- Elegibilidad histórica en ficha y filtro de leads, compartido entre HTML,
+  API y CSV; sin ejecutar evaluaciones ni autorizar contacto desde lecturas.
+- Acceso directo a límites y pausa desde navegación del workspace.
+- E2E por formularios con sesión/CSRF y worker, incluyendo PDF, aprobación,
+  envío mock y replay sin duplicar; revisión de páginas OWNER/VIEWER sin writes
+  en GET y con aislamiento y denegación a superusuarios sin membership.
+- Script reproducible de instalación SQLite vacía con datos temporales,
+  seed idempotente, login/CSRF, health, dashboard/API y worker; red bloqueada.
+- Matriz funcional y límites de la evidencia documentados. Sin modelos,
+  migraciones, dependencias ni comunicaciones externas nuevas.
+- Validación: 594 tests verdes, cobertura global 96 %, Django check, Ruff,
+  pip check y detección de migraciones verdes; instalación y servidor comprobados.
+
 ## 2026-10-13 · Preparación profesional del repositorio
 
 - Portada centrada en producto, arranque, garantías y límites verificables;

@@ -21,6 +21,7 @@
 | [Operaciones](OPERATIONS.md) | Worker, recuperación, métricas, exportación y backups |
 | [Seguridad técnica](SECURITY.md) | Permisos, CSP, archivos y checklist |
 | [Aceptación](ACCEPTANCE.md) | Flujo E2E offline y evidencia verificable |
+| [Verificación funcional](FUNCTIONAL_VERIFICATION.md) | Matriz de integración, instalación limpia y límites de la evidencia |
 
 ## Especificación e historial
 

@@ -11,6 +11,7 @@
   {% if can_retention %}<a class="nav-link" href="{% url 'audit:retention' workspace.id %}">Retención</a>{% endif %}
   <a class="nav-link" href="{% url 'outreach:outbox' workspace.id %}">Outbox</a>
   <a class="nav-link" href="{% url 'outreach:suppression' workspace.id %}">Supresión</a>
+  <a class="nav-link" href="{% url 'outreach:settings' workspace.id %}">Límites y pausa</a>
   <a class="nav-link" href="{% url 'outreach:tasks' workspace.id %}">Tareas y recordatorios</a>
   <a class="nav-link" href="{% url 'outreach:followup_rules' workspace.id %}">Seguimientos</a>
   <a class="nav-link" href="{% url 'outreach:email_connection' workspace.id %}">Conexión de email</a>
