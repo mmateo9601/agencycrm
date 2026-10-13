@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-13 · Documentación y aceptación offline V1
+
+- Documentación ARCHITECTURE, DOMAIN y PROVIDERS de la estructura del playbook,
+  con responsabilidades, invariantes, adapters actuales y límites explícitos.
+- Escenario de aceptación desde una base sin datos comerciales: Dentistas Galicia,
+  SEO Local + Google Ads y exactamente los tres negocios mock de la sección 34.
+- Login/CSRF, API, dedupe, enrichment, score/oportunidad, PDF, aprobación, un
+  solo envío mock tras replay, supresión, dashboard y auditoría en el mismo E2E.
+- ACCEPTANCE documenta la evidencia offline y las validaciones externas pendientes.
+  Sin cambios de dominio, migraciones, dependencias ni llamadas de red.
+- Validación: 586 tests verdes y cobertura global 96%; los ocho tests críticos
+  literales están presentes. Django check, Ruff, detección de migraciones y
+  arranque local verificados; servidores detenidos después del smoke.
+
 ## 2026-10-13 · Comandos operativos V1
 
 - `rebuild_scores` encola un padre de lote y crea hijos SCORE_LEAD en el worker,

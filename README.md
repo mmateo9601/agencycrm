@@ -9,6 +9,18 @@ Incluye CSP, permisos operativos, auditoría, CSV, retención y backup/restore l
 WhatsApp está verificado con HTTP mocks; el ensayo real controlado queda pendiente
 de configuración y autorización del operador.
 
+## Documentación y aceptación V1
+
+- [Arquitectura](docs/ARCHITECTURE.md): capas, módulos, worker y evolución de infraestructura.
+- [Dominio](docs/DOMAIN.md): entidades, constraints, transiciones, aprobación e idempotencia.
+- [Providers](docs/PROVIDERS.md): contratos, activación, mocks y validaciones externas pendientes.
+- [Aceptación offline](docs/ACCEPTANCE.md): flujo de las secciones 33–34 desde una base vacía.
+
+El E2E de aceptación usa sesión/CSRF reales de Django, los tres negocios ficticios
+del playbook, enriquecimiento, score/opportunity, PDF, aprobación y envío mock.
+Comprueba dedupe, un único transporte tras repetir la clave, supresión posterior,
+dashboard y secuencia de auditoría. No prueba credenciales ni envíos externos.
+
 ## Dashboard por workspace
 
 Al entrar en un espacio desde la portada se abre `/w/<uuid>/dashboard/`.
