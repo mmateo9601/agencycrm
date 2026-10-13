@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-labelledby="title description">
+  <title id="title">AgencyCRM</title>
+  <desc id="description">Prospección, criterio y trazabilidad. Identidad en azul oscuro y verde.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#101e34"/><stop offset="1" stop-color="#172f43"/></linearGradient>
+    <linearGradient id="accent"><stop stop-color="#62e6ca"/><stop offset="1" stop-color="#b4f3e5"/></linearGradient>
+  </defs>
+  <rect width="1200" height="300" rx="20" fill="url(#bg)"/>
+  <path d="M860 0v300M960 0v300M1060 0v300M1160 0v300M800 70h400M800 150h400M800 230h400" stroke="#294459" stroke-opacity=".6"/>
+  <rect x="62" y="62" width="50" height="6" rx="3" fill="#62e6ca"/>
+  <text x="62" y="142" fill="#f4f8fc" font-family="Segoe UI,Arial,sans-serif" font-size="62" font-weight="700" letter-spacing="-2">AgencyCRM</text>
+  <text x="65" y="190" fill="#b6cadb" font-family="Segoe UI,Arial,sans-serif" font-size="24">Prospección, criterio y trazabilidad.</text>
+  <text x="65" y="250" fill="#62e6ca" font-family="Segoe UI,Arial,sans-serif" font-size="14" letter-spacing="3">CONTROL HUMANO · EVIDENCIA COMERCIAL</text>
+  <path d="M850 214l75-56 74 27 110-108" fill="none" stroke="url(#accent)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#152c40" stroke="#62e6ca" stroke-width="4"><circle cx="850" cy="214" r="9"/><circle cx="925" cy="158" r="9"/><circle cx="999" cy="185" r="9"/><circle cx="1109" cy="77" r="9"/></g>
+  <circle cx="1109" cy="77" r="23" fill="#62e6ca" fill-opacity=".1"/>
+</svg>

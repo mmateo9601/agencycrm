@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-13 · Preparación profesional del repositorio
+
+- Portada centrada en producto, arranque, garantías y límites verificables;
+  identidad SVG local y navegación por el índice de documentación.
+- Guías de instalación, desarrollo y publicación, contribuciones y canal de
+  reporte de seguridad; README anterior conservado como archivo histórico.
+- Licencia MIT autorizada para el código propio y avisos de Bootstrap;
+  metadatos, EditorConfig, atributos Git y exclusiones locales revisadas.
+- Sin cambios funcionales, migraciones, dependencias nuevas ni publicación remota.
+- Validación: 586 tests, cobertura global 96 %, Django check, Ruff, pip check
+  y detección de migraciones verdes; 88 enlaces locales y SVG XML comprobados.
+- Arranque local y health/login/admin verificados; servidor detenido tras el smoke.
+  Exclusión de datos privados comprobada y firmas seleccionadas de credenciales
+  revisadas en el historial Git, sin coincidencias; no sustituye una auditoría completa.
+
 ## 2026-10-13 · Documentación y aceptación offline V1
 
 - Documentación ARCHITECTURE, DOMAIN y PROVIDERS de la estructura del playbook,

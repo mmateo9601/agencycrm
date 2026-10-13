@@ -1,13 +1,23 @@
+# Entornos y artefactos Python
 .venv/
+venv/
+build/
+dist/
+*.egg-info/
 __pycache__/
 *.py[cod]
+# Configuración privada (solo se comparte la plantilla)
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+# Datos y archivos operativos locales
 *.sqlite3
 *.sqlite3-*
 media/
 staticfiles/
+# Informes y cachés
 .pytest_cache/
 .ruff_cache/
 .coverage*
@@ -15,7 +25,11 @@ htmlcov/
 coverage.xml
 *.log
 *.worker.lock
+# Editor y sistema operativo
 .idea/
 .vscode/
+.DS_Store
+Thumbs.db
+# Directorios de trabajo y copias
 tmp/
 backups/
