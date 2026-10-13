@@ -8,6 +8,13 @@ from common.selectors import scoped_records
 from .models import Campaign
 
 
+def campaigns_for_api(*, user: User, workspace_id: UUID, filters: dict) -> QuerySet:
+    """Prefetch service IDs once for the paginated internal API."""
+    return campaign_records(
+        model=Campaign, user=user, workspace_id=workspace_id, filters=filters
+    ).prefetch_related("services")
+
+
 def campaign_records(
     *, model: type[Model], user: User, workspace_id: UUID, filters: dict
 ) -> QuerySet:

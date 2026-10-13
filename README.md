@@ -24,9 +24,26 @@ completo. Las cifras se recalculan al recargar con cuatro consultas agregadas,
 sin caché, jobs, mutaciones ni llamadas externas. No hacen falta migraciones.
 
 Este complemento cubre el dashboard de las secciones 22 y 33 del playbook.
-Siguen pendientes la API interna de la sección 23 y los comandos
-operativos `rebuild_scores` / `refresh_dashboard_metrics`. No existe una FASE 13
+Siguen pendientes los comandos operativos `rebuild_scores` /
+`refresh_dashboard_metrics`. No existe una FASE 13
 en el playbook; estos entregables globales deben completarse en cambios acotados.
+
+## API interna
+
+Implementados los once endpoints de la sección 23 bajo `/api/v1/`: lectura de
+empresas/leads/campañas/jobs, creación idempotente de campañas, aprobación de
+propuestas y mensajes, y encolado de contacto. Todas las peticiones requieren
+sesión y un único `workspace_id` en la query; los POST usan JSON y CSRF vigente.
+No hay bypass para superusuarios ni unión de workspaces.
+
+Los listados tienen páginas fijas de 25 filas y reutilizan filtros/selectors.
+Las mutaciones llaman a los servicios existentes; aprobar no envía y encolar
+solo crea/devuelve un Job. Se conservan permisos, revisiones, auditoría y políticas.
+Campos desconocidos/repetidos fallan; no se exponen payloads, secretos ni rutas PDF.
+La creación de campañas requiere `idempotency_key` UUID y conserva el registro
+original al reintentar; reutilizarla con otra solicitud falla. No requiere migración.
+
+Contrato, filtros, cuerpos y códigos de respuesta en [API.md](docs/API.md).
 
 ## Datos demo
 
@@ -950,7 +967,7 @@ validadas para reproducir esta entrega.
 | Dependencia directa | Motivo |
 | --- | --- |
 | Django 6.1.x | ORM, sesiones, CSRF, templates, admin y servidor local |
-| DRF 3.18.x | Base de API interna con SessionAuthentication |
+| DRF 3.18.x | API interna por sesión, CSRF y serializers/paginación explícitos |
 | python-dotenv | Carga de `.env` local sin sobrescribir el entorno |
 | tzdata | Base IANA para Europe/Madrid, necesaria en Windows |
 | phonenumbers | Validación y normalización E.164 de empresas/contactos, sin red |

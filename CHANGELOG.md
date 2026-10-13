@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-13 · API interna V1
+
+- Once endpoints de la sección 23: lecturas paginadas, creación de campaña,
+  aprobación de propuesta/mensaje y encolado mediante servicios existentes.
+- SessionAuthentication con CSRF, workspace obligatorio y permisos activos;
+  JSON y campos explícitos, filtros validados y ausencia de payloads/secretos.
+- Campañas idempotentes mediante UUID estable y digest auditado de la solicitud;
+  INSERT explícito para impedir sobrescrituras por colisión de identidad.
+- API dividida por app, helpers de transporte comunes y contrato documentado.
+  Sin llamadas de red, ejecución de providers, nuevas dependencias ni migraciones.
+- Validación: 559 tests verdes (35 de API), cobertura global 96% y API 100%.
+  Django check, Ruff y detección de migraciones verdes; servidor local y 403
+  JSON sin sesión comprobados. Revocar al aprobador bloquea el encolado.
+
 ## 2026-10-13 · Datos demo V1
 
 - Comando `seed_demo` idempotente: Demo Agency, servicios, campaña Dentistas

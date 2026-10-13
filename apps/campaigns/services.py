@@ -1,4 +1,6 @@
-from uuid import UUID
+import hashlib
+import json
+from uuid import UUID, uuid5
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -6,6 +8,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from apps.accounts.models import ServiceOffering, User
+from apps.audit.models import AuditEvent
 from apps.audit.services import record_event
 from common.access import workspace_access
 from common.selectors import scoped_record
@@ -17,7 +20,12 @@ from .schema import CAMPAIGN_FIELDS, CHANNEL_FIELDS
 
 @transaction.atomic
 def save_campaign(
-    *, user: User, workspace_id: UUID, data: dict, pk: UUID | None = None
+    *,
+    user: User,
+    workspace_id: UUID,
+    data: dict,
+    pk: UUID | None = None,
+    creation_id: UUID | None = None,
 ) -> Campaign:
     """Persist campaign and its service links atomically, checking every service ID."""
     data = dict(data)
@@ -44,8 +52,43 @@ def save_campaign(
         data=data,
         fields=CAMPAIGN_FIELDS,
         pk=pk,
+        creation_id=creation_id,
         after_save=link_services,
     )
+
+
+@transaction.atomic
+def create_campaign_once(
+    *, user: User, workspace_id: UUID, data: dict, idempotency_key: UUID
+) -> Campaign:
+    """Create an API campaign with a stable UUID and retain the original request digest.
+
+    A replay returns the current record even if an operator edited it later.
+    Reusing the key for a different request is rejected; the primary key also
+    prevents duplicates under concurrent creation, without schema changes.
+    """
+    workspace_access(user=user, workspace_id=workspace_id, write=True)
+    pk = uuid5(workspace_id, f"api-campaign:{idempotency_key}")
+    canonical = {**data, "services": sorted({str(value) for value in data.get("services", [])})}
+    digest = hashlib.sha256(json.dumps(canonical, sort_keys=True).encode()).hexdigest()
+    existing = Campaign.objects.filter(pk=pk, workspace_id=workspace_id).first()
+    if existing:
+        if not AuditEvent.objects.filter(
+            workspace_id=workspace_id,
+            object_id=pk,
+            action="API_CAMPAIGN_CREATED",
+            metadata__request_digest=digest,
+        ).exists():
+            raise ValidationError("La clave de idempotencia identifica otra solicitud.")
+        return existing
+    campaign = save_campaign(user=user, workspace_id=workspace_id, data=data, creation_id=pk)
+    record_event(
+        actor=user,
+        obj=campaign,
+        action="API_CAMPAIGN_CREATED",
+        metadata={"request_digest": digest},
+    )
+    return campaign
 
 
 def save_channel(

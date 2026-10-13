@@ -41,6 +41,7 @@ def save_record(
     data: dict,
     fields: Sequence[str],
     pk: UUID | None = None,
+    creation_id: UUID | None = None,
     after_save: Callable | None = None,
 ) -> models.Model:
     """Validate, persist and audit one scoped mutation atomically."""
@@ -50,7 +51,7 @@ def save_record(
             obj = (
                 scoped_record(model=model, user=user, workspace_id=workspace_id, pk=pk)
                 if pk
-                else model(workspace=workspace)
+                else model(workspace=workspace, **({"pk": creation_id} if creation_id else {}))
             )
             apply_data(obj=obj, data=data, fields=fields)
             if not pk and hasattr(obj, "created_by_id"):
@@ -69,7 +70,7 @@ def save_record(
                 # Editing a note must never overwrite a concurrently changed status or archive flag.
                 obj.save(update_fields=set(data) | derived_fields | {"updated_at"})
             else:
-                obj.save()
+                obj.save(force_insert=True)
             if after_save:
                 after_save(obj)
             record_event(

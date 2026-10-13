@@ -7,6 +7,7 @@ from apps.dashboard.views import DashboardView, HomeView, health
 from apps.outreach.whatsapp_webhooks import WhatsAppWebhookView
 
 urlpatterns = [
+    path("api/v1/", include("config.api_urls")),
     path("w/<uuid:workspace_id>/dashboard/", DashboardView.as_view(), name="dashboard"),
     path("w/<uuid:workspace_id>/audit/", include("apps.audit.urls")),
     path(
