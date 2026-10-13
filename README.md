@@ -24,9 +24,49 @@ completo. Las cifras se recalculan al recargar con cuatro consultas agregadas,
 sin caché, jobs, mutaciones ni llamadas externas. No hacen falta migraciones.
 
 Este complemento cubre el dashboard de las secciones 22 y 33 del playbook.
-Siguen pendientes `seed_demo`, la API interna de la sección 23 y los comandos
+Siguen pendientes la API interna de la sección 23 y los comandos
 operativos `rebuild_scores` / `refresh_dashboard_metrics`. No existe una FASE 13
 en el playbook; estos entregables globales deben completarse en cambios acotados.
+
+## Datos demo
+
+Después de `migrate`, ejecutar en modo `OUTREACH_MODE=simulation`:
+
+```powershell
+python manage.py seed_demo
+```
+
+Crea **Demo Agency**, agencia y servicios SEO Local/Google Ads, campaña
+**Dentistas Galicia**, diez empresas y contactos ficticios, oportunidades,
+scores explicables y leads en diez estados con historial. Incluye un PDF de
+propuesta generada, dos mensajes mock pendientes de aprobación, una supresión
+y dos jobs diagnósticos cancelados mediante servicios, sin ejecutar proveedores.
+No aprueba propuestas ni mensajes, no encola envíos y no ejecuta el worker.
+Los estados comerciales representan un historial ficticio, no contactos reales.
+Los dominios y emails usan `.invalid`; no se asignan números de teléfono.
+El mensaje WhatsApp muestra la ausencia de destinatario hasta configurarlo
+explícitamente para una prueba mock; no está listo para envío por defecto.
+
+Por defecto solo crea un actor técnico `_agencycrm_demo_seed`, sin contraseña
+utilizable ni acceso al admin. Para acceder por sesión con una cuenta nueva:
+
+```powershell
+python manage.py seed_demo --create-user demo
+python manage.py changepassword demo
+```
+
+La cuenta opcional es OWNER de Demo Agency, sin permisos staff/superusuario.
+`changepassword` pide una contraseña propia; no hay credenciales por defecto.
+También se puede asignar una membresía a un usuario existente desde el admin.
+El seed rechaza nombres de usuarios existentes que no haya creado él mismo.
+
+Repetir el comando conserva UUIDs, archivos, aprobaciones y cambios del operador.
+Puede añadir la cuenta opcional después del primer seed, pero nunca restablece
+contraseñas, roles ni membresías revocadas. Usa el bloqueo del worker: detenerlo
+antes de ejecutar el seed. Una colisión con los IDs/slug reservados falla sin
+adoptar registros existentes. La creación es transaccional y limpia su nuevo
+PDF si hay rollback. Un seed completado no repara datos borrados ni editados;
+para una demo nueva, usar una instalación/base de datos independiente.
 
 ## Uso de FASE 12
 
@@ -143,7 +183,8 @@ Crear desde el admin un `Workspace`, usuarios, sus `Membership`, un
 `AgencyProfile` y sus `ServiceOffering`. No se crean cuentas con contraseñas
 por defecto. Los roles de membership son OWNER, ADMIN, SALES, MEMBER y VIEWER.
 OWNER y ADMIN pueden crear, editar, archivar y eliminar; SALES y MEMBER pueden
-crear y editar; VIEWER solo consulta. `seed_demo` no existe aún.
+crear y editar; VIEWER solo consulta. `seed_demo` permite crear un espacio ficticio
+con datos de ejemplo y una cuenta opcional sin contraseña por defecto.
 
 ## Uso de FASE 1
 

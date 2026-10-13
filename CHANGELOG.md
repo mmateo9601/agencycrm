@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-13 · Datos demo V1
+
+- Comando `seed_demo` idempotente: Demo Agency, servicios, campaña Dentistas
+  Galicia, diez empresas/contactos, oportunidades, scores y estados con historial.
+- Propuesta PDF sin aprobación, mensajes mock pendientes, supresión y jobs
+  diagnósticos cancelados; ningún provider ni envío se ejecuta desde el seed.
+- Actor técnico sin contraseña utilizable y cuenta OWNER opcional mediante flag,
+  sin adoptar cuentas existentes ni restablecer credenciales/permisos del operador.
+- UUIDs reservados, bloqueo del worker, transacción y compensación del PDF;
+  conservación de datos ajenos y cambios manuales al repetir. Sin migraciones/deps.
+- Validación: 524 tests verdes, cobertura global 96% y seed 100%; Ruff,
+  Django check y detección de migraciones verdes. CLI repetida sobre SQLite
+  temporal con red bloqueada y servidor local comprobado.
+
 ## 2026-10-13 · Complemento del dashboard V1
 
 - Dashboard comercial por workspace con empresas, leads activos por estado,
