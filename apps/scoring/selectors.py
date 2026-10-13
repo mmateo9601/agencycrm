@@ -16,6 +16,22 @@ def scoring_rules(*, user: User, workspace_id: UUID):
     return scoped_records(model=ScoringRule, user=user, workspace_id=workspace_id)
 
 
+def rebuild_lead_ids(
+    *, workspace_id: UUID, campaign_id: UUID, after: str | None, limit: int
+) -> list[UUID]:
+    """Read a bounded page plus one sentinel in stable UUID order, within one campaign."""
+    records = Lead.objects.filter(
+        workspace_id=workspace_id,
+        campaign_id=campaign_id,
+        is_archived=False,
+        company__is_active=True,
+        company__workspace_id=workspace_id,
+    ).order_by("pk")
+    if after:
+        records = records.filter(pk__gt=after)
+    return list(records.values_list("pk", flat=True)[: limit + 1])
+
+
 def input_snapshot(lead: Lead) -> dict:
     """Read only scoped normalized facts; failed/stale observations never prove absence."""
     company = lead.company

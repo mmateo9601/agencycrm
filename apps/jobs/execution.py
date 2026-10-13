@@ -5,6 +5,7 @@ import traceback
 import uuid
 from datetime import timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -19,11 +20,30 @@ from .lifecycle import sync_related_job
 from .locking import WorkerLock
 from .models import Job, JobAttempt
 
+if TYPE_CHECKING:
+    from .handlers import ExecutionContext
+
 logger = logging.getLogger(__name__)
 
 
 class StaleExecution(Exception):
     """A callback no longer owns the running job token."""
+
+
+def job_for_context(context: ExecutionContext, *, kind: str) -> Job:
+    """Fence the active attempt and obtain its actor before application writes."""
+    job = Job.objects.filter(
+        pk=context.job_id,
+        workspace_id=context.workspace_id,
+        status=Job.Status.RUNNING,
+        attempts=context.attempt,
+        kind=kind,
+    ).first()
+    if job is None or job.created_by_id is None or job.payload != context.payload:
+        raise StaleExecution
+    if not _owned(job).update(updated_at=timezone.now()):
+        raise StaleExecution
+    return job
 
 
 def _require_lock(lock: WorkerLock) -> None:

@@ -31,6 +31,10 @@ class JobService:
         """Persist only; duplicate keys return the existing job or reject conflicting intent."""
         workspace = workspace_access(user=user, workspace_id=workspace_id, write=True)
         payload = validate_payload(kind, payload)
+        if kind == Job.Kind.REBUILD_SCORES:
+            from apps.scoring.batches import authorize_rebuild
+
+            authorize_rebuild(user=user, workspace_id=workspace_id, payload=payload)
         if kind == Job.Kind.RETENTION:
             from common.access import require_capability
 

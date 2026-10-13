@@ -13,6 +13,28 @@ SCENARIOS = [
 
 def validate_payload(kind: str, payload: dict) -> dict:
     """Accept explicit schemas only; resource IDs are separately authorized on enqueue."""
+    if kind == Job.Kind.REFRESH_METRICS:
+        if not isinstance(payload, dict) or payload:
+            raise ValidationError("Las métricas no admiten parámetros adicionales.")
+        return {}
+    if kind == Job.Kind.REBUILD_SCORES:
+        try:
+            if (
+                not isinstance(payload, dict)
+                or set(payload) != {"campaign_id", "after", "limit"}
+                or type(payload["limit"]) is not int
+                or not 1 <= payload["limit"] <= 200
+            ):
+                raise ValueError
+            return {
+                "campaign_id": str(UUID(str(payload["campaign_id"]))),
+                "after": str(UUID(str(payload["after"]))) if payload["after"] is not None else None,
+                "limit": payload["limit"],
+            }
+        except (ValueError, TypeError) as error:
+            raise ValidationError(
+                "Recálculo requiere campaña UUID, cursor UUID/null y límite 1–200."
+            ) from error
     if kind == Job.Kind.RETENTION:
         if (
             not isinstance(payload, dict)

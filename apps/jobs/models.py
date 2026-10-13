@@ -16,6 +16,7 @@ class Job(TimestampedModel):
         RUN_SEARCH_ITEM = "RUN_SEARCH_ITEM", "Ejecutar búsqueda"
         ENRICH_COMPANY = "ENRICH_COMPANY", "Enriquecer empresa"
         SCORE_LEAD = "SCORE_LEAD", "Calcular score"
+        REBUILD_SCORES = "REBUILD_SCORES", "Preparar lote de recálculo de scores"
         GENERATE_PROPOSAL = "GENERATE_PROPOSAL", "Generar propuesta"
         PREPARE_OUTREACH = "PREPARE_OUTREACH", "Preparar contacto"
         SEND_OUTREACH = "SEND_OUTREACH", "Enviar contacto"

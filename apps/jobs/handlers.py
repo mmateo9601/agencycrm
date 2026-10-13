@@ -71,6 +71,20 @@ def score_lead(context: ExecutionContext) -> dict:
     return run_score(context)
 
 
+def rebuild_scores(context: ExecutionContext) -> dict:
+    """Expand one bounded campaign batch through the scoring application service."""
+    from apps.scoring.batches import run_rebuild
+
+    return run_rebuild(context)
+
+
+def refresh_metrics(context: ExecutionContext) -> dict:
+    """Record a scoped dashboard snapshot without external I/O or a new cache."""
+    from apps.dashboard.services import run_metrics
+
+    return run_metrics(context)
+
+
 def generate_proposal(context: ExecutionContext) -> dict:
     """Dispatch deterministic document generation without sending or approving."""
     from apps.proposals.services import run_proposal
@@ -92,6 +106,8 @@ def retain_temporary_data(context: ExecutionContext) -> dict:
 
 
 HANDLERS: dict[str, Callable[[ExecutionContext], dict]] = {
+    Job.Kind.REBUILD_SCORES: rebuild_scores,
+    Job.Kind.REFRESH_METRICS: refresh_metrics,
     Job.Kind.RETENTION: retain_temporary_data,
     Job.Kind.SEND_OUTREACH: send_outreach,
     Job.Kind.GENERATE_PROPOSAL: generate_proposal,

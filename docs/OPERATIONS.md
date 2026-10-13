@@ -3,6 +3,57 @@
 Python 3.14, SQLite, un worker lógico. Mantener un terminal para `runserver` y otro
 para `run_worker`. Los providers de una instalación inicial son mock/simulation.
 
+## Recálculo de scores por lotes
+
+Aplicar `migrate` antes de usar el tipo REBUILD_SCORES. Los comandos requieren
+`--workspace`, `--actor` y `--idempotency-key` UUID; `rebuild_scores` requiere
+además `--campaign`. Actor activo con rol OWNER/ADMIN/SALES/MEMBER; VIEWER no
+encola y los superusuarios necesitan membership. Todos los IDs se resuelven
+dentro del workspace y no se recorren automáticamente todos los espacios.
+
+```powershell
+python manage.py rebuild_scores --workspace <workspace-uuid> --actor <user-uuid> --campaign <campaign-uuid> --idempotency-key <uuid> --limit 100
+python manage.py run_worker --once --kinds REBUILD_SCORES
+python manage.py run_worker --kinds SCORE_LEAD
+```
+
+El padre prepara un lote de 1–200 leads en orden de UUID, excluyendo leads
+archivados y empresas inactivas. Los leads cerrados pueden puntuarse, pero no
+cambian de estado ni originan contacto. No se admite campaña archivada ni cursor
+de otra campaña/workspace. El resultado del padre ofrece `next_after`; usarlo
+con `--after` y una clave nueva para el siguiente lote. `next_after: null` indica
+que no quedaban más candidatos en el momento de la expansión. Los nuevos leads
+pueden requerir otra reconstrucción desde el principio con una clave nueva.
+
+Los Jobs hijos y el manifiesto auditado se confirman en una sola transacción.
+Una recuperación del padre vuelve a usar el lote confirmado y no duplica hijos.
+Un fallo anterior al commit revierte toda la expansión. Los hijos conservan
+el actor original; revocar su acceso impide calcular. Cambiar reglas/datos antes
+de ejecutar un hijo afecta al score que se calcula entonces, no a la selección
+ya congelada del lote. Progreso/historial/resultado se consultan en Trabajos.
+
+Repetir un comando con la misma clave devuelve el mismo Job sin resucitar uno
+cancelado/fallido. Cambiar campaña, cursor o límite con la misma clave falla.
+Para reparar fallos de dominio, resolver la causa y pedir un Job con otra clave.
+Para una ejecución RUNNING interrumpida, detener el worker y usar la recuperación
+existente `requeue_stale_jobs`; nunca ejecutar dos workers sobre SQLite.
+
+## Instantáneas de métricas
+
+```powershell
+python manage.py refresh_dashboard_metrics --workspace <workspace-uuid> --actor <user-uuid> --idempotency-key <uuid>
+python manage.py run_worker --once --kinds REFRESH_METRICS
+```
+
+REFRESH_METRICS guarda agregados y fecha UTC `measured_at` en el resultado del Job
+y en auditoría. No incluye contactos, mensajes, payloads externos ni secretos.
+Repetir/recuperar el Job mantiene esa medición; usar una clave nueva para medir
+otra vez. La página del dashboard consulta datos vivos y no depende de este Job.
+Su semántica de conteo es la documentada en README: empresas totales, leads no
+archivados por estado actual, jobs en FAILED y mensajes en PENDING_APPROVAL.
+No hay cron ni nuevos servicios externos. El worker con `--kinds` permite limitar
+esta operación a los tipos internos anteriores sin procesar trabajos de envío.
+
 ## Antes de una copia
 
 Detener servidor HTTP y worker para que base y archivos permanezcan consistentes.

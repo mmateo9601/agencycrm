@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-13 · Comandos operativos V1
+
+- `rebuild_scores` encola un padre de lote y crea hijos SCORE_LEAD en el worker,
+  con tamaño máximo 200, cursor por UUID y manifiesto auditado recuperable.
+- `refresh_dashboard_metrics` encola una instantánea de agregados por workspace;
+  dashboard live, resultado idempotente y medición conservada en recuperaciones.
+- Actor/workspace/clave explícitos, permisos activos y contextos de ejecución
+  comprobados; expansión atómica, sin providers ni envíos desde los comandos.
+- Migración `jobs.0003_alter_job_kind` para REBUILD_SCORES. Sin dependencias nuevas.
+- Validación: 585 tests verdes, cobertura global 96% y servicios nuevos de lotes/
+  métricas 100%; lote máximo probado, Ruff/Django/migraciones verdes. Ensayo CLI
+  completo sobre SQLite temporal con red bloqueada y arranque local comprobado.
+
 ## 2026-10-13 · API interna V1
 
 - Once endpoints de la sección 23: lecturas paginadas, creación de campaña,

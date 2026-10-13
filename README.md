@@ -24,9 +24,42 @@ completo. Las cifras se recalculan al recargar con cuatro consultas agregadas,
 sin caché, jobs, mutaciones ni llamadas externas. No hacen falta migraciones.
 
 Este complemento cubre el dashboard de las secciones 22 y 33 del playbook.
-Siguen pendientes los comandos operativos `rebuild_scores` /
-`refresh_dashboard_metrics`. No existe una FASE 13
-en el playbook; estos entregables globales deben completarse en cambios acotados.
+Los complementos V1 incluyen dashboard, datos demo, API interna y comandos
+operativos. No existe una FASE 13 en el playbook. Los ensayos externos de los
+providers siguen pendientes de configuración y autorización del operador.
+
+## Comandos operativos de scores y métricas
+
+Ambos comandos encolan y requieren un actor con membresía activa de escritura,
+workspace UUID y clave UUID de idempotencia. No ejecutan providers, envíos ni
+el worker dentro del comando. Sin bypass por ser superusuario.
+
+```powershell
+python manage.py rebuild_scores --campaign <campaign-uuid> --workspace <workspace-uuid> --actor <user-uuid> --idempotency-key <uuid> --limit 100
+python manage.py refresh_dashboard_metrics --workspace <workspace-uuid> --actor <user-uuid> --idempotency-key <uuid>
+python manage.py run_worker --kinds REBUILD_SCORES,SCORE_LEAD,REFRESH_METRICS
+```
+
+`rebuild_scores` crea un Job padre REBUILD_SCORES. El worker selecciona hasta
+200 leads no archivados de esa campaña con empresa activa, en orden de UUID,
+y crea un Job SCORE_LEAD por lead. El score se calcula después por los servicios
+existentes, conservando historial y sin cambiar el estado comercial.
+La expansión es atómica; repetir/recuperar el padre conserva el lote y los IDs
+de los hijos, aunque aparezcan nuevos leads. El resultado muestra `count`,
+`job_ids` y `next_after`. Si `next_after` tiene valor, encolar otro lote con
+`--after <next_after>` y una clave nueva. Para una reconstrucción nueva desde
+el principio, usar otra clave. Se validan campaña/cursor y permisos al encolar
+y ejecutar; cada Job hijo vuelve a comprobar permisos y elegibilidad al calcular.
+
+`refresh_dashboard_metrics` crea un Job REFRESH_METRICS y guarda en su resultado
+los mismos agregados del dashboard, el workspace y `measured_at`. La recuperación
+reutiliza esa instantánea; una clave nueva obtiene una medición nueva. No crea
+una caché ni modifica las cifras de la página: el dashboard sigue consultando
+estados actuales. Resultados y progreso se consultan en **Trabajos**, dentro del
+workspace. La API de jobs expone progreso, pero omite el resultado completo.
+
+La migración `jobs/0003_alter_job_kind` añade REBUILD_SCORES; no añade tablas ni
+dependencias. Más detalles y recuperación en [OPERATIONS.md](docs/OPERATIONS.md).
 
 ## API interna
 
