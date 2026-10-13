@@ -36,7 +36,7 @@ La V1 debe priorizar **corrección, trazabilidad, idempotencia y seguridad opera
 
 ## 1.1 Stack inicial
 
-- Python 3.12.
+- Python 3.14.
 - Django 6.1.x.
 - Django REST Framework 3.18.x.
 - SQLite.
@@ -53,6 +53,7 @@ La V1 debe priorizar **corrección, trazabilidad, idempotencia y seguridad opera
 - `coverage`.
 - `reportlab` en la fase de documentos PDF.
 - `python-pptx` solo cuando se implemente generación dinámica de presentaciones.
+- commit por fases, con msg claro.
 
 No usar inicialmente:
 
